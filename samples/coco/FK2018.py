@@ -42,10 +42,13 @@ import imgaug.augmenters as iaa  # https://github.com/aleju/imgaug (pip3 install
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 from pycocotools import mask as maskUtils
-
+from skimage.measure import find_contours
 import zipfile
 import urllib.request
 import shutil
+import json
+import math
+import shapely.geometry
 
 # Root directory of the project
 ROOT_DIR = os.path.abspath("../../")
@@ -84,8 +87,8 @@ class FKConfig(Config):
     # GPU_COUNT = 8
 
     # Number of classes (including background)
-    NUM_CLASSES = 13  # COCO has 80 classes
-    STEPS_PER_EPOCH=40
+    NUM_CLASSES = 15  # COCO has 80 classes
+    STEPS_PER_EPOCH=1000
     BATCH_SIZE=32
 
 ############################################################
@@ -93,6 +96,7 @@ class FKConfig(Config):
 ############################################################
 
 class FKDataset(utils.Dataset):
+
     def load_fk(self, dataset_dir, class_ids=None,
                   class_map=None, return_coco=False):
         """Load a subset of the COCO dataset.
@@ -106,14 +110,11 @@ class FKDataset(utils.Dataset):
         auto_download: Automatically download and unzip MS-COCO images and annotations
         """
 
-
+        
         coco = COCO("{}/annotations.json".format(dataset_dir))
         image_dir = dataset_dir
 
-        # Load all classes or a subset?
-        if not class_ids:
-            # All classes
-            class_ids = sorted(coco.getCatIds())
+        
 
         # All images or a subset?
         if class_ids:
@@ -125,6 +126,11 @@ class FKDataset(utils.Dataset):
         else:
             # All images
             image_ids = list(coco.imgs.keys())
+
+        # Load all classes or a subset?
+        if not class_ids:
+            # All classes
+            class_ids = sorted(coco.getCatIds())
 
         # Add classes
         for i in class_ids:
@@ -197,10 +203,11 @@ class FKDataset(utils.Dataset):
     def image_reference(self, image_id):
         """Return a link to the image in the COCO Website."""
         info = self.image_info[image_id]
-        if info["source"] == "coco":
-            return "http://cocodataset.org/#explore?id={}".format(info["id"])
-        else:
-            super(FK2018Dataset, self).image_reference(image_id)
+        return info["path"]
+        # if info["source"] == "coco":
+        #     return "{}".format(info["id"])
+        # else:
+        #     super(FK2018Dataset, self).image_reference(image_id)
 
     # The following two functions are from pycocotools with a few changes.
 
@@ -253,6 +260,7 @@ def build_coco_results(dataset, image_ids, rois, class_ids, scores, masks):
             bbox = np.around(rois[i], 1)
             mask = masks[:, :, i]
 
+
             result = {
                 "image_id": image_id,
                 "category_id": dataset.get_source_class_id(class_id, "coco"),
@@ -260,8 +268,80 @@ def build_coco_results(dataset, image_ids, rois, class_ids, scores, masks):
                 "score": score,
                 "segmentation": maskUtils.encode(np.asfortranarray(mask))
             }
+
             results.append(result)
     return results
+
+
+def generate_labelme_file(model, dataset, output_dir, label_file):
+    image_ids = dataset.image_ids
+    t_prediction = 0
+    t_start = time.time()
+
+    labels={}
+    with open(label_file, 'r') as f:
+        i=0
+        for class_name in f.readlines():
+            labels[i] = class_name.strip()
+            i+=1
+
+    print(labels)
+    results = []
+    for i, image_id in enumerate(image_ids):
+        # Load image
+        image = dataset.load_image(image_id)
+
+
+
+        # Run detection
+        t = time.time()
+        r = model.detect([image], verbose=0)[0]
+        t_prediction += (time.time() - t)
+
+        imagename = dataset.image_info[image_id]['path'].split('/')[-1].split('.')[0]
+        print("Predicting objects in {}".format(imagename))
+        labelme_dict= {
+                "imagePath": imagename+'.jpg',
+                "imageData": None,
+                "shapes": [],
+                "version": "3.16.2", 
+                "flags": {}, 
+                "fillColor": [85, 170, 0, 128], 
+                "lineColor": [0, 255, 0, 128], 
+                "imageWidth": dataset.image_info[image_id]['width'], 
+                "imageHeight": dataset.image_info[image_id]['height']
+        }
+        for i in range(r['rois'].shape[0]):
+            class_id = r['class_ids'][i]
+            score = r['scores'][i]
+            bbox = np.around(r['rois'][i], 1)
+            mask = r['masks'][:, :, i]
+
+            polygon = find_contours(mask, 0.5)[0].tolist()
+            n = math.ceil(len(polygon)/20)
+            print(len(polygon))
+            # polygon = polygon[0::n]
+            polygon = shapely.geometry.Polygon(polygon)
+            polygon = polygon.simplify(1)
+            polygon = list(polygon.exterior.coords)
+            print(len(polygon))
+
+            for i in range(len(polygon)):
+                polygon[i]=[polygon[i][1], polygon[i][0]]
+
+            labelme_dict['shapes'].append({
+                "line_color":None,
+                "shape_type": "polygon", 
+                "points": polygon,
+                "flags": {}, 
+                "fill_color": [ 255, 0, 0, 128 ], 
+                "label": labels[class_id]
+                })
+        
+        
+        out_ann_file = output_dir +"/"+ imagename+'.json'
+        with open(out_ann_file, 'w') as f:
+            json.dump(labelme_dict, f)
 
 
 def evaluate_coco(model, dataset, coco, eval_type="bbox", limit=0, image_ids=None):
@@ -301,27 +381,130 @@ def evaluate_coco(model, dataset, coco, eval_type="bbox", limit=0, image_ids=Non
                                            r["masks"].astype(np.uint8))
         results.extend(image_results)
 
+    print(results)
+
     # Load results. This modifies results with additional attributes.
-    coco_results = coco.loadRes(results)
+    # coco_results = coco.loadRes(results)
 
-    # Evaluate
-    cocoEval = COCOeval(coco, coco_results, eval_type)
-    cocoEval.params.imgIds = coco_image_ids
-    cocoEval.evaluate()
-    cocoEval.accumulate()
-    cocoEval.summarize()
+    # # Evaluate
+    # cocoEval = COCOeval(coco, coco_results, eval_type)
+    # cocoEval.params.imgIds = coco_image_ids
+    # cocoEval.evaluate()
+    # cocoEval.accumulate()
+    # cocoEval.summarize()
 
-    print("Prediction time: {}. Average {}/image".format(
-        t_prediction, t_prediction / len(image_ids)))
-    print("Total time: ", time.time() - t_start)
+    # print("Prediction time: {}. Average {}/image".format(
+    #     t_prediction, t_prediction / len(image_ids)))
+    # print("Total time: ", time.time() - t_start)
 
 
 ############################################################
 #  Training
 ############################################################
 
+def train_nnet(section1_epochs=40, section2_epochs=120, section3_epochs=160, learning_rate=0.01, learning_momentum=0.9, 
+                optimiser='Adam', add_freq=0.1, add_value=(-30,30), add_pc_freq=0.5, multiply_freq=0.1, 
+                multiply_value=(0.75-1.25), multiply_pc_freq=0.5, snp_freq=0.1, snp_p=0.05, jpeg_freq=0.1, 
+                jpeg_compression=(5,15), gaussian_freq=0.1, gaussian_sigma=(0.01,0.7), motion_freq=0.1, motion_k=(3,10), 
+                contrast_freq=0.1, contrast_alpha=(0.5,1.5), fliplr=0.5, flipud=0.5, affine_freq=0.1, 
+                affine_scale=(0,0.05), transform_freq=0.1, transform_scale=(0,0.05), elastic_freq=0.1, elastic_sigma=(0.5, 5), 
+                elastic_alpha=(0,20), rotate=1, dataset="/scratch/jw22g14/FK2018/second_set/"):
+    config = FKConfig()
+    config.display()
+    model = modellib.MaskRCNN(mode="training", config=config,
+                                  model_dir=DEFAULT_LOGS_DIR)
+    model_path = COCO_MODEL_PATH
+    model.load_weights(model_path, by_name=True, exclude=[ "mrcnn_class_logits", "mrcnn_bbox_fc", "mrcnn_bbox", "mrcnn_mask"])
+    dataset_train = FKDataset()
+    dataset_train.load_fk(args.dataset+"train")
+    dataset_train.prepare()
+
+    # Validation dataset
+    dataset_val = FKDataset()
+    dataset_val.load_fk(args.dataset+"val")
+    dataset_val.prepare()
+
+
+    # Image Augmentation
+    # Right/Left flip 50% of the time
+    augmentation = iaa.Sequential([
+        iaa.Sometimes(add_freq, iaa.Add(value=add_value, per_channel=add_pc_freq)),
+        iaa.Sometimes(multiply_freq, iaa.Multiply(mul=multiply_value, per_channel=multiply_pc_freq)),
+        iaa.Sometimes(snp_freq, iaa.SaltAndPepper(snp_p)),
+        iaa.Sometimes(jpeg_freq, iaa.JpegCompression(compression=jpeg_compression)),
+        iaa.Sometimes(gaussian_freq, iaa.GaussianBlur(sigma=gaussian_sigma)),
+        iaa.Sometimes(motion_freq, iaa.MotionBlur(k=motion_k)),
+        iaa.Sometimes(contrast_freq, iaa.LinearContrast(alpha=contrast_alpha)),
+        iaa.Fliplr(fliplr),
+        iaa.Flipud(flipud),
+        iaa.Sometimes(affine_freq, iaa.PiecewiseAffine(scale=affine_scale, nb_rows=8, nb_cols=8)),
+        iaa.Sometimes(transform_freq, iaa.PerspectiveTransform(scale=transform_scale, keep_size=True, polygon_recoverer="auto")),
+        iaa.Sometimes(elastic_freq, iaa.ElasticTransformation(sigma=elastic_sigma, alpha=elastic_alpha)),
+        iaa.Sometimes(rotate, iaa.Rot90([0,1,2,3]))
+
+        # iaa.Fliplr(0.5), # horizontal flips
+        # iaa.Crop(percent=(0, 0.1)), # random crops
+        # # Small gaussian blur with random sigma between 0 and 0.25.
+        # # But we only blur about 50% of all images.
+        # iaa.Sometimes(0.5,
+        #     iaa.GaussianBlur(sigma=(0, 0.25))
+        # ),
+        # # Strengthen or weaken the contrast in each image.
+        # iaa.ContrastNormalization((0.75, 1.5)),
+        # # Add gaussian noise.
+        # # For 50% of all images, we sample the noise once per pixel.
+        # # For the other 50% of all images, we sample the noise per pixel AND
+        # # channel. This can change the color (not only brightness) of the
+        # # pixels.
+        # iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05*255)),
+        # # Make some images brighter and some darker.
+        # # In 20% of all cases, we sample the multiplier once per channel,
+        # # which can end up changing the color of the images.
+        # iaa.Multiply((0.8, 1.2)),
+        # # Apply affine transformations to each image.
+        # # Scale/zoom them, translate/move them, rotate them and shear them.
+        # iaa.Affine(
+        #     scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+        #     #translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+        #     rotate=(-180, 180),
+        #     #shear=(-8, 8)
+        # )
+    ], random_order=True)
+
+    print("Training network heads")
+    model.train(dataset_train, dataset_val,
+                learning_rate=learning_rate,
+                learning_momentum=learning_momentum,
+                epochs=section1_epochs, #40
+                layers='heads',
+                augmentation=augmentation)
+
+    # Training - Stage 2
+    # Finetune layers from ResNet stage 4 and up
+    print("Fine tune Resnet stage 4 and up")
+    model.train(dataset_train, dataset_val,
+                learning_rate=learning_rate,
+                learning_momentum=learning_momentum,
+                epochs=section2_epochs, #120
+                layers='4+',
+                augmentation=augmentation)
+
+    # Training - Stage 3
+    # Fine tune all layers
+    print("Fine tune all layers")
+    model.train(dataset_train, dataset_val,
+                learning_rate=learning_rate/10,
+                learning_momentum=learning_momentum,
+                epochs=section3_epochs, #160
+                layers='all',
+                augmentation=augmentation)
+
+
 
 if __name__ == '__main__':
+    train_nnet()
+
+def old_main():
     import argparse
 
     # Parse command line arguments
@@ -344,6 +527,38 @@ if __name__ == '__main__':
                         default=500,
                         metavar="<image count>",
                         help='Images to use for evaluation (default=500)')
+
+
+
+    parser.add_argument('--section1_epochs',
+                        default=40,
+                        required=False,
+                        type=int)
+    parser.add_argument('--section2_epochs',
+                        default=80,
+                        required=False,
+                        type=int)
+    parser.add_argument('--section3_epochs',
+                        default=80,
+                        required=False,
+                        type=int)
+    parser.add_argument('--learning_rate',
+                        default=0.001,
+                        required=False,
+                        type=float)
+    parser.add_argument('--learning_momentum',
+                        default=0.9,
+                        required=False,
+                        type=float)
+    parser.add_argument('--optimiser',
+                        default='Adam',
+                        required=False,
+                        type=str)
+    
+
+
+
+
 
     args = parser.parse_args()
     print("Command: ", args.command)
