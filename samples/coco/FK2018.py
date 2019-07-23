@@ -86,7 +86,7 @@ class FKConfig(Config):
     # Number of classes (including background)
     NUM_CLASSES = 13  # COCO has 80 classes
     STEPS_PER_EPOCH=40
-    BATCH_SIZE=8
+    BATCH_SIZE=32
 
 ############################################################
 #  Dataset
@@ -442,7 +442,7 @@ if __name__ == '__main__':
         print("Training network heads")
         model.train(dataset_train, dataset_val,
                     learning_rate=config.LEARNING_RATE,
-                    epochs=4, #40
+                    epochs=40,
                     layers='heads',
                     augmentation=augmentation)
 
@@ -451,7 +451,7 @@ if __name__ == '__main__':
         print("Fine tune Resnet stage 4 and up")
         model.train(dataset_train, dataset_val,
                     learning_rate=config.LEARNING_RATE,
-                    epochs=12, #120
+                    epochs=120,
                     layers='4+',
                     augmentation=augmentation)
 
@@ -460,7 +460,7 @@ if __name__ == '__main__':
         print("Fine tune all layers")
         model.train(dataset_train, dataset_val,
                     learning_rate=config.LEARNING_RATE / 10,
-                    epochs=16, #160
+                    epochs=160,
                     layers='all',
                     augmentation=augmentation)
 
