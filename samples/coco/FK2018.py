@@ -163,7 +163,7 @@ class FKDataset(utils.Dataset):
         # If not a COCO image, delegate to parent class.
         image_info = self.image_info[image_id]
         if image_info["source"] != "coco":
-            return super(FK2018Dataset, self).load_mask(image_id)
+            return super(FKDataset, self).load_mask(image_id)
 
         instance_masks = []
         class_ids = []
@@ -198,7 +198,7 @@ class FKDataset(utils.Dataset):
             return mask, class_ids
         else:
             # Call super class to return an empty mask
-            return super(FK2018Dataset, self).load_mask(image_id)
+            return super(FKDataset, self).load_mask(image_id)
 
     def image_reference(self, image_id):
         """Return a link to the image in the COCO Website."""
@@ -416,12 +416,12 @@ def train_nnet(section1_epochs=40, section2_epochs=120, section3_epochs=160, lea
     model_path = COCO_MODEL_PATH
     model.load_weights(model_path, by_name=True, exclude=[ "mrcnn_class_logits", "mrcnn_bbox_fc", "mrcnn_bbox", "mrcnn_mask"])
     dataset_train = FKDataset()
-    dataset_train.load_fk(args.dataset+"train")
+    dataset_train.load_fk(dataset+"train")
     dataset_train.prepare()
 
     # Validation dataset
     dataset_val = FKDataset()
-    dataset_val.load_fk(args.dataset+"val")
+    dataset_val.load_fk(dataset+"val")
     dataset_val.prepare()
 
 
@@ -438,7 +438,7 @@ def train_nnet(section1_epochs=40, section2_epochs=120, section3_epochs=160, lea
         iaa.Fliplr(fliplr),
         iaa.Flipud(flipud),
         iaa.Sometimes(affine_freq, iaa.PiecewiseAffine(scale=affine_scale, nb_rows=8, nb_cols=8)),
-        iaa.Sometimes(transform_freq, iaa.PerspectiveTransform(scale=transform_scale, keep_size=True, polygon_recoverer="auto")),
+        iaa.Sometimes(transform_freq, iaa.PerspectiveTransform(scale=transform_scale, keep_size=True)),
         iaa.Sometimes(elastic_freq, iaa.ElasticTransformation(sigma=elastic_sigma, alpha=elastic_alpha)),
         iaa.Sometimes(rotate, iaa.Rot90([0,1,2,3]))
 
@@ -474,7 +474,6 @@ def train_nnet(section1_epochs=40, section2_epochs=120, section3_epochs=160, lea
     print("Training network heads")
     model.train(dataset_train, dataset_val,
                 learning_rate=learning_rate,
-                learning_momentum=learning_momentum,
                 epochs=section1_epochs, #40
                 layers='heads',
                 augmentation=augmentation)
@@ -484,7 +483,6 @@ def train_nnet(section1_epochs=40, section2_epochs=120, section3_epochs=160, lea
     print("Fine tune Resnet stage 4 and up")
     model.train(dataset_train, dataset_val,
                 learning_rate=learning_rate,
-                learning_momentum=learning_momentum,
                 epochs=section2_epochs, #120
                 layers='4+',
                 augmentation=augmentation)
@@ -494,15 +492,19 @@ def train_nnet(section1_epochs=40, section2_epochs=120, section3_epochs=160, lea
     print("Fine tune all layers")
     model.train(dataset_train, dataset_val,
                 learning_rate=learning_rate/10,
-                learning_momentum=learning_momentum,
                 epochs=section3_epochs, #160
                 layers='all',
                 augmentation=augmentation)
 
 
 
-if __name__ == '__main__':
-    train_nnet()
+
+
+
+
+
+
+
 
 def old_main():
     import argparse
@@ -691,3 +693,10 @@ def old_main():
     else:
         print("'{}' is not recognized. "
               "Use 'train' or 'evaluate'".format(args.command))
+
+
+if __name__ == '__main__':
+    old_main()
+
+    # train_nnet(dataset="/Users/jenny/Documents/uni/data/FK2018/subset/labelme/second_set_coco/")
+
