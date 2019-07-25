@@ -897,9 +897,7 @@ def build_rpn_model(anchor_stride, anchors_per_location, depth):
 #  Feature Pyramid Network Heads
 ############################################################
 
-def fpn_classifier_graph(rois, feature_maps, image_meta,
-                         pool_size, num_classes, train_bn=True,
-                         fc_layers_size=1024):
+def fpn_classifier_graph(rois, feature_maps, image_meta,pool_size, num_classes, train_bn=True,fc_layers_size=1024):
     """Builds the computation graph of the feature pyramid network classifier
     and regressor heads.
 
@@ -953,8 +951,7 @@ def fpn_classifier_graph(rois, feature_maps, image_meta,
     return mrcnn_class_logits, mrcnn_probs, mrcnn_bbox
 
 
-def build_fpn_mask_graph(rois, feature_maps, image_meta,
-                         pool_size, num_classes, train_bn=True):
+def build_fpn_mask_graph(rois, feature_maps, image_meta,pool_size, num_classes, train_bn=True):
     """Builds the computation graph of the mask head of Feature Pyramid Network.
 
     rois: [batch, num_rois, (y1, x1, y2, x2)] Proposal boxes in normalized
@@ -1073,8 +1070,7 @@ def rpn_bbox_loss_graph(config, target_bbox, rpn_match, rpn_bbox):
     return loss
 
 
-def mrcnn_class_loss_graph(target_class_ids, pred_class_logits,
-                           active_class_ids):
+def mrcnn_class_loss_graph(target_class_ids, pred_class_logits,active_class_ids):
     """Loss for the classifier head of Mask RCNN.
 
     target_class_ids: [batch, num_rois]. Integer class IDs. Uses zero
@@ -1248,10 +1244,15 @@ def load_image_gt(dataset, config, image_id, augment=False, augmentation=None,
         mask_shape = mask.shape
         # Make augmenters deterministic to apply similarly to images and masks
         det = augmentation.to_deterministic()
-        image = det.augment_image(image)
-        # Change mask to np.uint8 because imgaug doesn't support np.bool
-        mask = det.augment_image(mask.astype(np.uint8),
-                                 hooks=imgaug.HooksImages(activator=hook))
+
+        try:
+            image = det.augment_image(image)
+            # Change mask to np.uint8 because imgaug doesn't support np.bool
+            mask = det.augment_image(mask.astype(np.uint8),
+                                     hooks=imgaug.HooksImages(activator=hook))
+        except:
+            print("augmentation failed on " + str(image_id))
+
         # Verify that shapes didn't change
         assert image.shape == image_shape, "Augmentation shouldn't change image size"
         assert mask.shape == mask_shape, "Augmentation shouldn't change mask size"
