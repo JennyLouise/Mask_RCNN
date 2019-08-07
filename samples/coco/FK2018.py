@@ -87,9 +87,9 @@ class FKConfig(Config):
     # GPU_COUNT = 8
 
     # Number of classes (including background)
-    NUM_CLASSES = 13  # COCO has 80 classes
-    STEPS_PER_EPOCH=1000
-    BATCH_SIZE=32
+    NUM_CLASSES = 15  # COCO has 80 classes
+    STEPS_PER_EPOCH=100
+    BATCH_SIZE=16
 
 ############################################################
 #  Dataset
@@ -437,7 +437,7 @@ def train_nnet(section1_epochs=40, section2_epochs=120, section3_epochs=160, lea
         iaa.Sometimes(contrast_freq, iaa.LinearContrast(alpha=contrast_alpha)),
         iaa.Fliplr(fliplr),
         iaa.Flipud(flipud),
-        iaa.Sometimes(affine_freq, iaa.PiecewiseAffine(scale=affine_scale, nb_rows=8, nb_cols=8)),
+        iaa.Sometimes(affine_freq, iaa.PiecewiseAffine(scale=affine_scale, nb_rows=8, nb_cols=8,polygon_recoverer='auto')),
         iaa.Sometimes(transform_freq, iaa.PerspectiveTransform(scale=transform_scale, keep_size=True)),
         iaa.Sometimes(elastic_freq, iaa.ElasticTransformation(sigma=elastic_sigma, alpha=elastic_alpha)),
         iaa.Sometimes(rotate, iaa.Rot90([0,1,2,3]))
@@ -533,11 +533,11 @@ def old_main():
 
 
     parser.add_argument('--section1_epochs',
-                        default=40,
+                        default=10,
                         required=False,
                         type=int)
     parser.add_argument('--section2_epochs',
-                        default=80,
+                        default=20,
                         required=False,
                         type=int)
     parser.add_argument('--section3_epochs',
@@ -659,7 +659,7 @@ def old_main():
         print("Training network heads")
         model.train(dataset_train, dataset_val,
                     learning_rate=config.LEARNING_RATE,
-                    epochs=40,
+                    epochs=10,
                     layers='heads',
                     augmentation=augmentation)
 
@@ -668,7 +668,7 @@ def old_main():
         print("Fine tune Resnet stage 4 and up")
         model.train(dataset_train, dataset_val,
                     learning_rate=config.LEARNING_RATE,
-                    epochs=120,
+                    epochs=30,
                     layers='4+',
                     augmentation=augmentation)
 
@@ -696,7 +696,7 @@ def old_main():
 
 
 if __name__ == '__main__':
-    old_main()
+    #old_main()
 
-    # train_nnet(dataset="/Users/jenny/Documents/uni/data/FK2018/subset/labelme/second_set_coco/")
+    train_nnet(dataset="/scratch/jw22g14/FK2018/second_set/")
 
