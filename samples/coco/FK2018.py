@@ -402,13 +402,13 @@ def evaluate_coco(model, dataset, coco, eval_type="bbox", limit=0, image_ids=Non
 #  Training
 ############################################################
 
-def train_nnet(section1_epochs=10, section2_epochs=40, section3_epochs=160, learning_rate=0.01, learning_momentum=0.9, 
-                optimiser='Adam', add_freq=0.1, add_value=(-30,30), add_pc_freq=0.5, multiply_freq=0.1, 
-                multiply_value=(0.75-1.25), multiply_pc_freq=0.5, snp_freq=0.1, snp_p=0.05, jpeg_freq=0.1, 
-                jpeg_compression=(5,15), gaussian_freq=0.1, gaussian_sigma=(0.01,0.7), motion_freq=0.1, motion_k=(3,10), 
+def train_nnet(section1_epochs=40, section2_epochs=120, section3_epochs=160, learning_rate=0.01, learning_momentum=0.9, 
+                optimiser='Adam', add_freq=0.1, add_value=(-10,10), add_pc_freq=0.5, multiply_freq=0.1, 
+                multiply_value=(0.75,1.25), multiply_pc_freq=0.5, snp_freq=0.1, snp_p=0.05, jpeg_freq=0.1, 
+                jpeg_compression=(1,5), gaussian_freq=0.1, gaussian_sigma=(0.01,0.7), motion_freq=0.1, motion_k=(3,10), 
                 contrast_freq=0.1, contrast_alpha=(0.5,1.5), fliplr=0.5, flipud=0.5, affine_freq=0.1, 
-                affine_scale=(0,0.05), transform_freq=0.1, transform_scale=(0,0.05), elastic_freq=0.1, elastic_sigma=(0.5, 5), 
-                elastic_alpha=(0,20), rotate=1, dataset="/scratch/jw22g14/FK2018/second_set/"):
+                affine_scale=(0,0.02), transform_freq=0.1, transform_scale=(0,0.05), elastic_freq=0.1, elastic_sigma=(4, 6), 
+                elastic_alpha=(0,7), rotate=1, dataset="/scratch/jw22g14/FK2018/second_set/"):
     config = FKConfig()
     config.display()
     model = modellib.MaskRCNN(mode="training", config=config,
