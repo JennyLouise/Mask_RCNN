@@ -2263,8 +2263,14 @@ class MaskRCNN():
                 # So, adjust for that then increment by one to start from the next epoch
                 self.epoch = int(m.group(6)) - 1 + 1
                 print('Re-starting from epoch %d' % self.epoch)
-
+        else:
         # Directory for training logs
+            while True:
+                if os.path.isdir(os.path.join(self.model_dir, "{}{:%Y%m%dT%H%M}".format(self.config.NAME.lower(), now))):
+                    print("log file already exists")
+                    now = datetime.datetime.now()
+                else:
+                    break
         self.log_dir = os.path.join(self.model_dir, "{}{:%Y%m%dT%H%M}".format(
             self.config.NAME.lower(), now))
 
