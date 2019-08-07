@@ -2270,10 +2270,10 @@ class MaskRCNN():
                     print("log file already exists")
                     now = datetime.datetime.now()
                 else:
-                    os.makedirs(self.log_dir)
                     break
         self.log_dir = os.path.join(self.model_dir, "{}{:%Y%m%dT%H%M}".format(
             self.config.NAME.lower(), now))
+        os.makedirs(self.log_dir)
 
         # Path to save after each epoch. Include placeholders that get filled by Keras.
         self.checkpoint_path = os.path.join(self.log_dir, "mask_rcnn_{}_*epoch*.h5".format(
