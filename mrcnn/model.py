@@ -2270,6 +2270,7 @@ class MaskRCNN():
                     print("log file already exists")
                     now = datetime.datetime.now()
                 else:
+                    os.makedirs(self.log_dir)
                     break
         self.log_dir = os.path.join(self.model_dir, "{}{:%Y%m%dT%H%M}".format(
             self.config.NAME.lower(), now))
