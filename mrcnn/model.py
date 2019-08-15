@@ -1834,7 +1834,10 @@ class MaskRCNN():
         self.mode = mode
         self.config = config
         self.model_dir = model_dir
-        self.set_log_dir()
+        if mode == 'inference':
+            self.set_log_dir(model_path='./')
+        else:
+            self.set_log_dir()
         self.keras_model = self.build(mode=mode, config=config)
 
     def build(self, mode, config):
@@ -2135,7 +2138,7 @@ class MaskRCNN():
             f.close()
 
         # Update the log directory
-        self.set_log_dir(filepath)
+        self.set_log_dir(model_path=filepath)
 
     def get_imagenet_weights(self):
         """Downloads ImageNet trained weights from Keras.
@@ -2273,7 +2276,12 @@ class MaskRCNN():
                     break
         self.log_dir = os.path.join(self.model_dir, "{}{:%Y%m%dT%H%M}".format(
             self.config.NAME.lower(), now))
-        os.makedirs(self.log_dir)
+
+
+
+        # Create log_dir if it does not exist
+        if not os.path.exists(self.log_dir):
+            os.makedirs(self.log_dir)
 
         # Path to save after each epoch. Include placeholders that get filled by Keras.
         self.checkpoint_path = os.path.join(self.log_dir, "mask_rcnn_{}_*epoch*.h5".format(
