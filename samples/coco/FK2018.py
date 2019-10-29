@@ -87,7 +87,7 @@ class FKConfig(Config):
     # GPU_COUNT = 8
 
     # Number of classes (including background)
-    NUM_CLASSES = 15  # COCO has 80 classes
+    NUM_CLASSES = 33  # COCO has 80 classes
     STEPS_PER_EPOCH=100
     BATCH_SIZE=16
 
@@ -729,5 +729,5 @@ def old_main():
 if __name__ == '__main__':
     #old_main()
 
-    train_nnet(dataset="/scratch/jw22g14/FK2018/second_set/")
+    train_nnet(dataset="/scratch/jw22g14/FK2018/first_set/")
 
