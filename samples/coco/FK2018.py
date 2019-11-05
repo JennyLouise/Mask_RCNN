@@ -402,7 +402,7 @@ def evaluate_coco(model, dataset, coco, eval_type="bbox", limit=0, image_ids=Non
 #  Training
 ############################################################
 
-def train_nnet(section1_epochs=40, section2_epochs=120, section3_epochs=160, learning_rate=0.01, learning_momentum=0.9, 
+def train_nnet(section1_epochs=10, section2_epochs=60, section3_epochs=100, learning_rate=0.01, learning_momentum=0.9, 
                 optimiser='Adam', add_freq=0.1, add_value=(-10,10), add_pc_freq=0.5, multiply_freq=0.1, 
                 multiply_value=(0.75,1.25), multiply_pc_freq=0.5, snp_freq=0.1, snp_p=0.05, jpeg_freq=0.1, 
                 jpeg_compression=(1,5), gaussian_freq=0.1, gaussian_sigma=(0.01,0.7), motion_freq=0.1, motion_k=(3,10), 
