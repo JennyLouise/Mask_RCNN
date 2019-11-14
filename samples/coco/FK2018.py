@@ -87,9 +87,20 @@ class FKConfig(Config):
     # GPU_COUNT = 8
 
     # Number of classes (including background)
-    NUM_CLASSES = 33  # COCO has 80 classes
+    NUM_CLASSES = 33#New tunasand set has 33, secondset has 15  # COCO has 80 classes
     STEPS_PER_EPOCH=100
     BATCH_SIZE=16
+
+    LOSS_WEIGHTS = {
+        "rpn_class_loss": 1,
+        "rpn_bbox_loss": 1,
+        "mrcnn_class_loss": 1,
+        "mrcnn_bbox_loss": 1,
+        "mrcnn_mask_loss": 1
+    }
+    
+    RPN_NMS_THRESHOLD = 0.9
+    TRAIN_ROIS_PER_IMAGE = 100 
 
 ############################################################
 #  Dataset
@@ -402,7 +413,7 @@ def evaluate_coco(model, dataset, coco, eval_type="bbox", limit=0, image_ids=Non
 #  Training
 ############################################################
 
-def train_nnet(section1_epochs=10, section2_epochs=60, section3_epochs=100, learning_rate=0.01, learning_momentum=0.9, 
+def train_nnet(section1_epochs=10, section2_epochs=20, section3_epochs=100, learning_rate=0.01, learning_momentum=0.9, 
                 optimiser='Adam', add_freq=0.1, add_value=(-10,10), add_pc_freq=0.5, multiply_freq=0.1, 
                 multiply_value=(0.75,1.25), multiply_pc_freq=0.5, snp_freq=0.1, snp_p=0.05, jpeg_freq=0.1, 
                 jpeg_compression=(1,5), gaussian_freq=0.1, gaussian_sigma=(0.01,0.7), motion_freq=0.1, motion_k=(3,10), 
@@ -472,35 +483,42 @@ def train_nnet(section1_epochs=10, section2_epochs=60, section3_epochs=100, lear
     ], random_order=True)
 
     #setting augmentation to original "old main" version
-    # augmentation = iaa.Sometimes(.667, iaa.Sequential([
-    #         iaa.Fliplr(0.5), # horizontal flips
-    #         iaa.Crop(percent=(0, 0.1)), # random crops
-    #         # Small gaussian blur with random sigma between 0 and 0.25.
-    #         # But we only blur about 50% of all images.
-    #         iaa.Sometimes(0.5,
-    #             iaa.GaussianBlur(sigma=(0, 0.25))
-    #         ),
-    #         # Strengthen or weaken the contrast in each image.
-    #         iaa.ContrastNormalization((0.75, 1.5)),
-    #         # Add gaussian noise.
-    #         # For 50% of all images, we sample the noise once per pixel.
-    #         # For the other 50% of all images, we sample the noise per pixel AND
-    #         # channel. This can change the color (not only brightness) of the
-    #         # pixels.
-    #         iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05*255)),
-    #         # Make some images brighter and some darker.
-    #         # In 20% of all cases, we sample the multiplier once per channel,
-    #         # which can end up changing the color of the images.
-    #         iaa.Multiply((0.8, 1.2)),
-    #         # Apply affine transformations to each image.
-    #         # Scale/zoom them, translate/move them, rotate them and shear them.
-    #         iaa.Affine(
-    #             scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
-    #             #translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
-    #             rotate=(-180, 180),
-    #             #shear=(-8, 8)
-    #         )
-    #     ], random_order=True))
+#   augmentation = iaa.Sometimes(.667, iaa.Sequential([
+#            iaa.Fliplr(0.5), # horizontal flips
+#            iaa.Crop(percent=(0, 0.1)), # random crops
+#            # Small gaussian blur with random sigma between 0 and 0.25.
+#            # But we only blur about 50% of all images.
+#            iaa.Sometimes(0.5,
+#                iaa.GaussianBlur(sigma=(0, 0.25))
+#            ),
+#            # Strengthen or weaken the contrast in each image.
+#            iaa.ContrastNormalization((0.75, 1.5)),
+#            # Add gaussian noise.
+#            # For 50% of all images, we sample the noise once per pixel.
+#            # For the other 50% of all images, we sample the noise per pixel AND
+#            # channel. This can change the color (not only brightness) of the
+#            # pixels.
+#            iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05*255)),
+#            # Make some images brighter and some darker.
+#            # In 20% of all cases, we sample the multiplier once per channel,
+#            # which can end up changing the color of the images.
+#            iaa.Multiply((0.8, 1.2)),
+#            # Apply affine transformations to each image.
+#            # Scale/zoom them, translate/move them, rotate them and shear them.
+#            iaa.Affine(
+#                scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+#                #translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+#                rotate=(-180, 180),
+#                #shear=(-8, 8)
+#            )
+#        ], random_order=True))
+
+    print("Training RPN")
+    model.train(dataset_train, dataset_val,
+                learning_rate=learning_rate,
+                epochs=5, #40
+                layers='rpn',
+                augmentation=augmentation)
 
     print("Training network heads")
     model.train(dataset_train, dataset_val,
@@ -685,6 +703,10 @@ def old_main():
         ], random_order=True)) # apply augmenters in random order
 
         # *** This training schedule is an example. Update to your needs ***
+
+
+        print("Training RPN")
+        
 
         # Training - Stage 1
         print("Training network heads")
