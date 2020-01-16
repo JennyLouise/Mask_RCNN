@@ -77,7 +77,7 @@ class Config(object):
 
     # Ratios of anchors at each cell (width/height)
     # A value of 1 represents a square anchor, and 0.5 is a wide anchor
-    RPN_ANCHOR_RATIOS = [0.2, 1, 5]
+    RPN_ANCHOR_RATIOS = [0.5, 1, 2]
 
     # Anchor stride
     # If 1 then anchors are created for each cell in the backbone feature map.
@@ -86,7 +86,7 @@ class Config(object):
 
     # Non-max suppression threshold to filter RPN proposals.
     # You can increase this during training to generate more propsals.
-    RPN_NMS_THRESHOLD = 0.7
+    RPN_NMS_THRESHOLD = 0.8
 
     # How many anchors per image to use for RPN training
     RPN_TRAIN_ANCHORS_PER_IMAGE = 256
@@ -123,7 +123,7 @@ class Config(object):
     #         on IMAGE_MIN_DIM and IMAGE_MIN_SCALE, then picks a random crop of
     #         size IMAGE_MIN_DIM x IMAGE_MIN_DIM. Can be used in training only.
     #         IMAGE_MAX_DIM is not used in this mode.
-    IMAGE_RESIZE_MODE = "square"
+    IMAGE_RESIZE_MODE = "crop"
     IMAGE_MIN_DIM = 1024
     IMAGE_MAX_DIM = 1024
     # Minimum scaling ratio. Checked after MIN_IMAGE_DIM and can force further

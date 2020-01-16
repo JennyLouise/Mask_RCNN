@@ -4,4 +4,5 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --time=48:00:00   
-python3 job_array_nnet.py $SLURM_ARRAY_TASK_ID '/scratch/jw22g14/FK2018/tunasand/20180805_215810_ts_un6k/labels/coco/'
+python3 job_array_nnet.py $SLURM_ARRAY_TASK_ID '/scratch/jw22g14/FK2018/tunasand/20180805_215810_ts_un6k/labels/coco/acfr_pipeline/' 
+# '/scratch/jw22g14/FK2018/tunasand/20180805_215810_ts_un6k/images/processed/image/i20180805_215810/debayered/colour_balance/colour_balanced_point1/'
