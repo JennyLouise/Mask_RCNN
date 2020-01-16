@@ -87,9 +87,14 @@ class FKConfig(Config):
     # GPU_COUNT = 8
 
     # Number of classes (including background)
-    NUM_CLASSES = 33  # COCO has 80 classes
+    NUM_CLASSES = 10  # COCO has 80 classes
     STEPS_PER_EPOCH=100
     BATCH_SIZE=16
+    RPN_ANCHOR_RATIOS = [0.5, 1, 2]
+    IMAGE_RESIZE_MODE="crop"
+    IMAGE_MIN_DIM = 1024
+    IMAGE_MAX_DIM = 1024
+
 
 ############################################################
 #  Dataset
