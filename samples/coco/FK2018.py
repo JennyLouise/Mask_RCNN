@@ -63,7 +63,7 @@ COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
 
 # Directory to save logs and model checkpoints, if not provided
 # through the command line argument --logs
-DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, "logs")
+DEFAULT_LOGS_DIR = "/scratch/jw22g14/results/fk2018/paperlogs/"
 DEFAULT_DATASET_YEAR = "2018"
 
 ############################################################
@@ -81,15 +81,15 @@ class FKConfig(Config):
 
     # We use a GPU with 12GB memory, which can fit two images.
     # Adjust down if you use a smaller GPU.
-    IMAGES_PER_GPU = 2
+    #IMAGES_PER_GPU = 2
 
     # Uncomment to train on 8 GPUs (default is 1)
-    # GPU_COUNT = 8
+    GPU_COUNT = 8
 
     # Number of classes (including background)
-    NUM_CLASSES = 33#New tunasand set has 33, secondset has 15  # COCO has 80 classes
-    STEPS_PER_EPOCH=100
-    BATCH_SIZE=16
+    NUM_CLASSES = 10#New tunasand set has 33, secondset has 15, fish only has 7, fish_A has 6  # COCO has 80 classes
+    STEPS_PER_EPOCH=15
+    BATCH_SIZE=32
 
     LOSS_WEIGHTS = {
         "rpn_class_loss": 1,
@@ -418,8 +418,8 @@ def train_nnet(section1_epochs=10, section2_epochs=20, section3_epochs=100, lear
                 multiply_value=(0.75,1.25), multiply_pc_freq=0.5, snp_freq=0.1, snp_p=0.05, jpeg_freq=0.1, 
                 jpeg_compression=(1,5), gaussian_freq=0.1, gaussian_sigma=(0.01,0.7), motion_freq=0.1, motion_k=(3,10), 
                 contrast_freq=0.1, contrast_alpha=(0.5,1.5), fliplr=0.5, flipud=0.5, affine_freq=0.1, 
-                affine_scale=(0,0.02), transform_freq=0.1, transform_scale=(0,0.05), elastic_freq=0.1, elastic_sigma=(4, 6), 
-                elastic_alpha=(0,7), rotate=1, dataset="/scratch/jw22g14/FK2018/second_set/", log_file=""):
+                affine_scale=(0,0.02), transform_freq=0.1, transform_scale=(0,0.05),elastic_transformations=False, elastic_freq=0.1, elastic_sigma=(4, 6), 
+                elastic_alpha=(0,7), rotate=1, dataset="/scratch/jw22g14/FK2018/second_set/", log_file="", separate_channel_operations=0):
     config = FKConfig()
     config.display()
     model = modellib.MaskRCNN(mode="training", config=config,
@@ -482,6 +482,11 @@ def train_nnet(section1_epochs=10, section2_epochs=20, section3_epochs=100, lear
         # )
     ], random_order=True)
 
+    auglist=[iaa.Add(value=add_value, per_channel=separate_channel_operations), iaa.Multiply(mul=multiply_value, per_channel=separate_channel_operations), iaa.SaltAndPepper(snp_p), iaa.JpegCompression(compression=jpeg_compression), iaa.GaussianBlur(sigma=gaussian_sigma), iaa.MotionBlur(k=motion_k), iaa.LinearContrast(alpha=contrast_alpha), iaa.Fliplr(fliplr), iaa.Flipud(flipud), iaa.PiecewiseAffine(scale=affine_scale, nb_rows=8, nb_cols=8,polygon_recoverer='auto'), iaa.PerspectiveTransform(scale=transform_scale, keep_size=True), iaa.Rot90([0,1,2,3])]
+    if(elastic_transformations):
+        auglist.append(iaa.ElasticTransformation(sigma=elastic_sigma, alpha=elastic_alpha))
+    augmentation = iaa.SomeOf((0, 5), auglist, random_order=True)
+
     #setting augmentation to original "old main" version
 #   augmentation = iaa.Sometimes(.667, iaa.Sequential([
 #            iaa.Fliplr(0.5), # horizontal flips
@@ -513,28 +518,28 @@ def train_nnet(section1_epochs=10, section2_epochs=20, section3_epochs=100, lear
 #            )
 #        ], random_order=True))
 
-    print("Training RPN")
-    model.train(dataset_train, dataset_val,
-                learning_rate=learning_rate,
-                epochs=5, #40
-                layers='rpn',
-                augmentation=augmentation)
+    #print("Training RPN")
+    #model.train(dataset_train, dataset_val,
+    #            learning_rate=learning_rate,
+    #            epochs=5, #40
+    #            layers='rpn',
+    #            augmentation=augmentation)
 
-    print("Training network heads")
-    model.train(dataset_train, dataset_val,
-                learning_rate=learning_rate,
-                epochs=section1_epochs, #40
-                layers='heads',
-                augmentation=augmentation)
+    #print("Training network heads")
+    #model.train(dataset_train, dataset_val,
+    #            learning_rate=learning_rate,
+    #            epochs=section1_epochs, #40
+    #            layers='heads',
+    #            augmentation=augmentation)
 
     # Training - Stage 2
     # Finetune layers from ResNet stage 4 and up
-    print("Fine tune Resnet stage 4 and up")
-    model.train(dataset_train, dataset_val,
-                learning_rate=learning_rate,
-                epochs=section2_epochs, #120
-                layers='4+',
-                augmentation=augmentation)
+    #print("Fine tune Resnet stage 4 and up")
+    #model.train(dataset_train, dataset_val,
+    #            learning_rate=learning_rate,
+    #            epochs=section2_epochs, #120
+    #            layers='4+',
+    #            augmentation=augmentation)
 
     # Training - Stage 3
     # Fine tune all layers
@@ -543,7 +548,8 @@ def train_nnet(section1_epochs=10, section2_epochs=20, section3_epochs=100, lear
                 learning_rate=learning_rate/10,
                 epochs=section3_epochs, #160
                 layers='all',
-                augmentation=augmentation)
+                augmentation=augmentation,
+                )
 
 
 
