@@ -1254,8 +1254,8 @@ def load_image_gt(dataset, config, image_id, augment=False, augmentation=None,
             print("augmentation failed on " + str(image_id))
 
         # Verify that shapes didn't change
-        assert image.shape == image_shape, "Augmentation shouldn't change image size"
-        assert mask.shape == mask_shape, "Augmentation shouldn't change mask size"
+        # assert image.shape == mask.shape, "Augmentation shouldn't change image size in relation to mask size"
+        
         # Change mask back to bool
         mask = mask.astype(np.bool)
 
