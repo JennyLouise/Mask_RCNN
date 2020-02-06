@@ -2,7 +2,9 @@
 
 This is a fork of an implementation of [Mask R-CNN](https://arxiv.org/abs/1703.06870) on Python 3, Keras, and TensorFlow. The model generates bounding boxes and segmentation masks for each instance of an object in the image. It's based on Feature Pyramid Network (FPN) and a ResNet101 backbone.
 
-![Instance Segmentation Sample](assets/street.png)
+The following explanation of the project has been adapted from the original git repository to include benthic imagery.
+
+![Instance Segmentation Sample](assets/FK2018_segmentation_example.png)
 
 The repository includes:
 * Source code of Mask R-CNN built on FPN and ResNet101.
@@ -44,21 +46,21 @@ To help with debugging and understanding the model, there are 3 notebooks
 
 ## 1. Anchor sorting and filtering
 Visualizes every step of the first stage Region Proposal Network and displays positive and negative anchors along with anchor box refinement.
-![](assets/detection_anchors.png)
+![](assets/FK2018_example_anchors.png)
 
 ## 2. Bounding Box Refinement
 This is an example of final detection boxes (dotted lines) and the refinement applied to them (solid lines) in the second stage.
-![](assets/detection_refinement.png)
+![](assets/FK2018_example_anchor_refinement.png)
 
 ## 3. Mask Generation
 Examples of generated masks. These then get scaled and placed on the image in the right location.
 
-![](assets/detection_masks.png)
+![](assets/FK2018_example_masks.png)
 
 ## 4.Layer activations
 Often it's useful to inspect the activations at different layers to look for signs of trouble (all zeros or random noise).
 
-![](assets/detection_activations.png)
+![](assets/FK2018_example_layer_activations.png)
 
 ## 5. Weight Histograms
 Another useful debugging tool is to inspect the weight histograms. These are included in the inspect_weights.ipynb notebook.
@@ -72,7 +74,7 @@ TensorBoard is another great debugging and visualization tool. The model is conf
 
 ## 6. Composing the different pieces into a final result
 
-![](assets/detection_final.png)
+![](assets/FK2018_example_detections.png)
 
 
 # Training on MS COCO
