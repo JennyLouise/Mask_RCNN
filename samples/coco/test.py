@@ -1,10 +1,13 @@
 import os
-os.environ["KMP_AFFINITY"]="disabled"
+
+os.environ["KMP_AFFINITY"] = "disabled"
 import csv
 import math
 import tensorflow as tf
+
 print("LOOOK HERE, THE CODE GOT TO HERE, WOOOOOHOOOOOOOOOOO - imported tensorflow")
 import FK2018
+
 print("WAHOOOOO - imported FK2018")
 import mrcnn.model as modellib
 import pandas as pd
@@ -14,8 +17,8 @@ import argparse
 import matplotlib.pyplot as plt
 import seaborn as sns
 from keras import backend as K
-conf = K.tf.ConfigProto(intra_op_parallelism_threads=1,
-                           inter_op_parallelism_threads=1)
+
+conf = K.tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
 K.set_session(K.tf.Session(config=conf))
 print("imported keras")
 import logging
@@ -25,6 +28,7 @@ global ts_dataset
 global ae_dive1_dataset
 global ae_dive2_dataset
 global ae_dive3_dataset
+
 
 def get_dataset_filepath(experiment):
     filepath = "/scratch/jw22g14/FK2018/tunasand/20180805_215810_ts_un6k/images/processed/image/i20180805_215810/"
@@ -43,7 +47,7 @@ def get_dataset_filepath(experiment):
     else:
         filepath += "no_distortion_correction/"
 
-    filepath += experiment['rescaled'] + "/"
+    filepath += experiment["rescaled"] + "/"
 
     filepath += "val"
     return filepath
@@ -75,15 +79,22 @@ def get_ae2000_dataset_filepaths(experiment):
 
 
 def load_images(image_ids, dataset, config):
-    images=[]
+    images = []
     for image_id in image_ids:
-            # Load image
-            image, image_meta, gt_class_id, gt_bbox, gt_mask = modellib.load_image_gt(
-                dataset, config, image_id, use_mini_mask=False
-            )
-            images.append({'image':image, 'image_meta':image_meta, 'gt_class_id':gt_class_id, 'gt_bbox':gt_bbox, 'gt_mask':gt_mask})
+        # Load image
+        image, image_meta, gt_class_id, gt_bbox, gt_mask = modellib.load_image_gt(
+            dataset, config, image_id, use_mini_mask=False
+        )
+        images.append(
+            {
+                "image": image,
+                "image_meta": image_meta,
+                "gt_class_id": gt_class_id,
+                "gt_bbox": gt_bbox,
+                "gt_mask": gt_mask,
+            }
+        )
     return images
-
 
 
 def compute_batch_ap(image_ids, dataset, model, config):
@@ -95,12 +106,12 @@ def compute_batch_ap(image_ids, dataset, model, config):
     size_overlaps = {}
     overlaps_list = []
     for iteration in range(5):
-        images=load_images(image_ids, dataset, config)
-        logging.debug("running detection for iteration "+str(iteration))
-        results = model.detect([d['image'] for d in images], verbose=0)
+        images = load_images(image_ids, dataset, config)
+        logging.debug("running detection for iteration " + str(iteration))
+        results = model.detect([d["image"] for d in images], verbose=0)
         for n, image in enumerate(images):
-            if len(image['gt_class_id']) > 0:
-                logging.debug("getting stats for image " +str(image['image_meta'][0]))
+            if len(image["gt_class_id"]) > 0:
+                logging.debug("getting stats for image " + str(image["image_meta"][0]))
                 # Compute AP
                 r = results[n]
                 for i, roi in enumerate(r["rois"]):
@@ -111,9 +122,9 @@ def compute_batch_ap(image_ids, dataset, model, config):
                     singleton_masks = np.zeros([1024, 1024, 1])
                     singleton_masks[:, :, 0] = np.array(r["masks"][:, :, i])
                     AP, precisions, recalls, overlaps = utils.compute_ap(
-                        image['gt_bbox'],
-                        image['gt_class_id'],
-                        image['gt_mask'],
+                        image["gt_bbox"],
+                        image["gt_class_id"],
+                        image["gt_mask"],
                         np.array([roi]),
                         np.array([r["class_ids"][i]]),
                         np.array([r["scores"][i]]),
@@ -148,7 +159,6 @@ def load_dataset(filepath):
 def get_stats(weights_filepath, dataset):
     config = FK2018.FKConfig()
     print("got config")
-    
 
     class InferenceConfig(config.__class__):
         # Run detection on one image at a time
@@ -170,7 +180,9 @@ def get_stats(weights_filepath, dataset):
 
     # Must call before using the dataset
 
-    logging.debug("Images: {}\nClasses: {}".format(len(dataset.image_ids), dataset.class_names))
+    logging.debug(
+        "Images: {}\nClasses: {}".format(len(dataset.image_ids), dataset.class_names)
+    )
 
     with tf.device(DEVICE):
         model = modellib.MaskRCNN(mode="inference", model_dir="./log", config=config)
@@ -179,7 +191,9 @@ def get_stats(weights_filepath, dataset):
     logging.debug("Loading weights ", weights_filepath)
     model.load_weights(weights_filepath, by_name=True)
     image_ids = dataset.image_ids
-    class_APs, size_APs, APs, class_overlaps, size_overlaps, overlaps = compute_batch_ap(image_ids, dataset, model, config)
+    class_APs, size_APs, APs, class_overlaps, size_overlaps, overlaps = compute_batch_ap(
+        image_ids, dataset, model, config
+    )
     return class_APs, size_APs, APs, class_overlaps, size_overlaps, overlaps
 
 
@@ -203,7 +217,7 @@ def directory_to_experiment_info(directory):
     else:
         distortion_correction = False
 
-    rescaled = directory.split("/")[-1].split("-")[2] 
+    rescaled = directory.split("/")[-1].split("-")[2]
     number = int(directory.split("/")[-1].split("-")[-1])
     experiment = {
         "colour_correction_type": colour_correction_type,
@@ -223,9 +237,10 @@ def directory_to_experiment_info(directory):
 
     return experiment
 
+
 def add_single_experiment(directory, df_filepath, datasets):
     csv_filenames = [
-            f for f in os.listdir(directory) if f[0:5] == "resul" and f[-4:] == ".csv"
+        f for f in os.listdir(directory) if f[0:5] == "resul" and f[-4:] == ".csv"
     ]
     weights_folder = [f for f in os.walk(directory)][0][1][0]
     for filename in csv_filenames:
@@ -254,7 +269,6 @@ def add_single_experiment(directory, df_filepath, datasets):
         else:
             experiment["separate_channel_ops"] = False
 
-
         if not experiment_in_dataframe(df_filepath, experiment):
             weights_file = (
                 directory + "/" + weights_folder + "/" + "mask_rcnn_fk2018_best.h5"
@@ -263,36 +277,54 @@ def add_single_experiment(directory, df_filepath, datasets):
                 # try:
                 logging.debug("getting stats")
                 logging.debug("tunasand stats")
-                experiment["class_APs"], \
-                experiment["size_APs"], \
-                experiment["APs"], \
-                experiment["class_overlaps"], \
-                experiment["size_overlaps"], \
-                experiment["overlaps"] = get_stats(weights_file, datasets[0])
+                experiment["class_APs"], experiment["size_APs"], experiment[
+                    "APs"
+                ], experiment["class_overlaps"], experiment[
+                    "size_overlaps"
+                ], experiment[
+                    "overlaps"
+                ] = get_stats(
+                    weights_file, datasets[0]
+                )
 
                 logging.debug("aestats, dive1")
-                experiment['ae_class_APs_dive1'], \
-                experiment['ae_size_APs_dive1'], \
-                experiment['ae_APs_dive1'], \
-                experiment['ae_class_overlaps_dive1'], \
-                experiment['ae_size_overlaps_dive1'], \
-                experiment['ae_overlaps_dive1'] = get_stats(weights_file, datasets[1])
+                experiment["ae_class_APs_dive1"], experiment[
+                    "ae_size_APs_dive1"
+                ], experiment["ae_APs_dive1"], experiment[
+                    "ae_class_overlaps_dive1"
+                ], experiment[
+                    "ae_size_overlaps_dive1"
+                ], experiment[
+                    "ae_overlaps_dive1"
+                ] = get_stats(
+                    weights_file, datasets[1]
+                )
 
                 logging.debug("aestats, dive2")
-                experiment['ae_class_APs_dive2'], \
-                experiment['ae_size_APs_dive2'], \
-                experiment['ae_APs_dive2'], \
-                experiment['ae_class_overlaps_dive2'], \
-                experiment['ae_size_overlaps_dive2'], \
-                experiment['ae_overlaps_dive2'] = get_stats(weights_file, datasets[2])
+                experiment["ae_class_APs_dive2"], experiment[
+                    "ae_size_APs_dive2"
+                ], experiment["ae_APs_dive2"], experiment[
+                    "ae_class_overlaps_dive2"
+                ], experiment[
+                    "ae_size_overlaps_dive2"
+                ], experiment[
+                    "ae_overlaps_dive2"
+                ] = get_stats(
+                    weights_file, datasets[2]
+                )
 
                 logging.debug("aestats, dive3")
-                experiment['ae_class_APs_dive3'], \
-                experiment['ae_size_APs_dive3'], \
-                experiment['ae_APs_dive3'], \
-                experiment['ae_class_overlaps_dive3'], \
-                experiment['ae_size_overlaps_dive3'], \
-                experiment['ae_overlaps_dive3'] = get_stats(weights_file, datasets[3])
+                experiment["ae_class_APs_dive3"], experiment[
+                    "ae_size_APs_dive3"
+                ], experiment["ae_APs_dive3"], experiment[
+                    "ae_class_overlaps_dive3"
+                ], experiment[
+                    "ae_size_overlaps_dive3"
+                ], experiment[
+                    "ae_overlaps_dive3"
+                ] = get_stats(
+                    weights_file, datasets[3]
+                )
                 # except:
                 #     print("issue getting loss values")
             else:
@@ -300,38 +332,48 @@ def add_single_experiment(directory, df_filepath, datasets):
                 print(weights_file)
             update_dataframe(df_filepath, experiment)
         else:
-            print("already in dataframe, skipping "+filename)
+            print("already in dataframe, skipping " + filename)
 
 
 def populate_experiments_dataframe(number):
     print("LOADED IMPORTS - NOW RUNNING CODE")
-    df_filepath = './dataframe_'+str(number)+'.csv'
-    logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',filename='log'+str(number)+'.log',level=logging.DEBUG)
+    df_filepath = "./dataframe_" + str(number) + ".csv"
+    logging.basicConfig(
+        format="%(asctime)s %(levelname)-8s %(message)s",
+        filename="log" + str(number) + ".log",
+        level=logging.DEBUG,
+    )
     experiments = []
-    dataset=array_num_to_dataset(number)
+    dataset = array_num_to_dataset(number)
     files = [x for x in os.walk("../../../paper_experiments/weights/")][0][1]
     files = [x for x in files if x.split("-")[0:3] == dataset]
     directories = ["../../../paper_experiments/weights/" + f for f in files]
-    experiment=directory_to_experiment_info(directories[0])
+    experiment = directory_to_experiment_info(directories[0])
     dataset_filepath = get_dataset_filepath(experiment)
-    ae_dataset_filepath_dive1, ae_dataset_filepath_dive2, ae_dataset_filepath_dive3 = get_ae2000_dataset_filepaths(experiment)
-    datasets=[load_dataset(dataset_filepath), load_dataset(ae_dataset_filepath_dive1), load_dataset(ae_dataset_filepath_dive2), load_dataset(ae_dataset_filepath_dive3)]
+    ae_dataset_filepath_dive1, ae_dataset_filepath_dive2, ae_dataset_filepath_dive3 = get_ae2000_dataset_filepaths(
+        experiment
+    )
+    datasets = [
+        load_dataset(dataset_filepath),
+        load_dataset(ae_dataset_filepath_dive1),
+        load_dataset(ae_dataset_filepath_dive2),
+        load_dataset(ae_dataset_filepath_dive3),
+    ]
     print(directories)
     for directory in directories:
-         add_single_experiment(directory, df_filepath, datasets)
+        add_single_experiment(directory, df_filepath, datasets)
     return
-
 
 
 def experiment_in_dataframe(df_filepath, experiment):
     df = pd.read_csv(df_filepath)
     print(df)
     pre_existing_experiment = df.loc[
-            (df["colour_correction_type"] == experiment["colour_correction_type"])
-            & (df["distortion_correction"] == experiment["distortion_correction"])
-            & (df["rescaled"] == experiment["rescaled"])
-            & (df["number"] == experiment["number"])
-        ]
+        (df["colour_correction_type"] == experiment["colour_correction_type"])
+        & (df["distortion_correction"] == experiment["distortion_correction"])
+        & (df["rescaled"] == experiment["rescaled"])
+        & (df["number"] == experiment["number"])
+    ]
     print(pre_existing_experiment)
     return not pre_existing_experiment.empty
 
@@ -339,7 +381,7 @@ def experiment_in_dataframe(df_filepath, experiment):
 def update_dataframe(df_filepath, experiment):
     df = pd.read_csv(df_filepath, index_col=0)
     df = df.append(experiment, ignore_index=True)
-    logging.debug("saving experiment to "+df_filepath)
+    logging.debug("saving experiment to " + df_filepath)
     df.to_csv(df_filepath)
 
 
@@ -352,25 +394,52 @@ def create_dataframe(number):
     print("CREATING DATAFRAME")
     df = populate_experiments_dataframe(number)
 
+
 def array_num_to_dataset(number):
-    num_to_dataset_dict = {0:['histogram_normalised','no_distortion_correction','dropped_resolution'],
-                           1:['histogram_normalised','no_distortion_correction','dropped_resolution_scaledup'],
-                           2:['histogram_normalised','distortion_correction','dropped_resolution'],
-                           3:['histogram_normalised','distortion_correction','dropped_resolution_scaledup'],
-                           4:['greyworld_corrected','no_distortion_correction','dropped_resolution'],
-                           5:['greyworld_corrected','no_distortion_correction','dropped_resolution_scaledup'],
-                           6:['greyworld_corrected','distortion_correction','dropped_resolution'],
-                           7:['greyworld_corrected','distortion_correction','dropped_resolution_scaledup'],
-                           8:['attenuation_correction','no_distortion_correction','dropped_resolution'],
-                           9:['attenuation_correction','no_distortion_correction','dropped_resolution_scaledup'],
-                           10:['attenuation_correction','distortion_correction','dropped_resolution'],
-                           11:['attenuation_correction','distortion_correction','dropped_resolution_scaledup']
-      }
+    num_to_dataset_dict = {
+        0: ["histogram_normalised", "no_distortion_correction", "dropped_resolution"],
+        1: [
+            "histogram_normalised",
+            "no_distortion_correction",
+            "dropped_resolution_scaledup",
+        ],
+        2: ["histogram_normalised", "distortion_correction", "dropped_resolution"],
+        3: [
+            "histogram_normalised",
+            "distortion_correction",
+            "dropped_resolution_scaledup",
+        ],
+        4: ["greyworld_corrected", "no_distortion_correction", "dropped_resolution"],
+        5: [
+            "greyworld_corrected",
+            "no_distortion_correction",
+            "dropped_resolution_scaledup",
+        ],
+        6: ["greyworld_corrected", "distortion_correction", "dropped_resolution"],
+        7: [
+            "greyworld_corrected",
+            "distortion_correction",
+            "dropped_resolution_scaledup",
+        ],
+        8: ["attenuation_correction", "no_distortion_correction", "dropped_resolution"],
+        9: [
+            "attenuation_correction",
+            "no_distortion_correction",
+            "dropped_resolution_scaledup",
+        ],
+        10: ["attenuation_correction", "distortion_correction", "dropped_resolution"],
+        11: [
+            "attenuation_correction",
+            "distortion_correction",
+            "dropped_resolution_scaledup",
+        ],
+    }
     return num_to_dataset_dict[number]
 
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Pass job array id')
-    parser.add_argument('array_id', type=int, help='job array id')
+    parser = argparse.ArgumentParser(description="Pass job array id")
+    parser.add_argument("array_id", type=int, help="job array id")
     args = parser.parse_args()
     number = args.array_id
     create_dataframe(number)

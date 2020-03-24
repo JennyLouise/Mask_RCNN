@@ -10,8 +10,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-NUMBER = '0'
-DF_FILEPATH = './dataframe_0.csv'
+NUMBER = "0"
+DF_FILEPATH = "./dataframe_0.csv"
+
 
 def get_dataset_filepath(experiment):
     filepath = "/Volumes/jw22g14_phd/fk2018/tunasand/20180805_215810_ts_un6k/processed/image/i20180805_215810/"
@@ -30,7 +31,7 @@ def get_dataset_filepath(experiment):
     else:
         filepath += "no_distortion_correction/"
 
-    filepath += experiment['rescaled'] + "/"
+    filepath += experiment["rescaled"] + "/"
 
     filepath += "val"
     return filepath
@@ -59,6 +60,7 @@ def get_ae2000_dataset_filepaths(experiment):
         filepath += "/"
 
     return [filepath + "dive1", filepath + "dive2", filepath + "dive3"]
+
 
 def compute_batch_ap(image_ids, model, dataset, config):
     import numpy
@@ -115,6 +117,7 @@ def compute_batch_ap(image_ids, model, dataset, config):
 
     return class_APs, size_APs, APs, class_overlaps, size_overlaps, overlaps_list
 
+
 def get_stats(weights_filepath, dataset_filepath):
     config = FK2018.FKConfig()
 
@@ -152,7 +155,9 @@ def get_stats(weights_filepath, dataset_filepath):
     model.load_weights(weights_filepath, by_name=True)
 
     image_ids = dataset.image_ids
-    class_APs, size_APs, APs, class_overlaps, size_overlaps, overlaps = compute_batch_ap(image_ids, model, dataset, config)
+    class_APs, size_APs, APs, class_overlaps, size_overlaps, overlaps = compute_batch_ap(
+        image_ids, model, dataset, config
+    )
     return class_APs, size_APs, APs, class_overlaps, size_overlaps, overlaps
 
 
@@ -176,7 +181,7 @@ def directory_to_experiment_info(directory):
     else:
         distortion_correction = False
 
-    rescaled = directory.split("/")[-1].split("-")[2] 
+    rescaled = directory.split("/")[-1].split("-")[2]
     number = int(directory.split("/")[-1].split("-")[-1])
     experiment = {
         "colour_correction_type": colour_correction_type,
@@ -233,42 +238,61 @@ def populate_experiments_dataframe():
             else:
                 experiment["separate_channel_ops"] = False
 
-
             if not experiment_in_dataframe(DF_FILEPATH, experiment):
                 weights_file = (
                     directory + "/" + weights_folder + "/" + "mask_rcnn_fk2018_best.h5"
                 )
                 dataset_filepath = get_dataset_filepath(experiment)
-                ae_dataset_filepath_dive1, ae_dataset_filepath_dive2, ae_dataset_filepath_dive3 = get_ae2000_dataset_filepaths(experiment)
+                ae_dataset_filepath_dive1, ae_dataset_filepath_dive2, ae_dataset_filepath_dive3 = get_ae2000_dataset_filepaths(
+                    experiment
+                )
                 if os.path.exists(weights_file):
                     # try:
-                    experiment["class_APs"], \
-                    experiment["size_APs"], \
-                    experiment["APs"], \
-                    experiment["class_overlaps"], \
-                    experiment["size_overlaps"], \
-                    experiment["overlaps"] = get_stats(weights_file, dataset_filepath)
+                    experiment["class_APs"], experiment["size_APs"], experiment[
+                        "APs"
+                    ], experiment["class_overlaps"], experiment[
+                        "size_overlaps"
+                    ], experiment[
+                        "overlaps"
+                    ] = get_stats(
+                        weights_file, dataset_filepath
+                    )
 
-                    experiment['ae_class_APs_dive1'], \
-                    experiment['ae_size_APs_dive1'], \
-                    experiment['ae_APs_dive1'], \
-                    experiment['ae_class_overlaps_dive1'], \
-                    experiment['ae_size_overlaps_dive1'], \
-                    experiment['ae_overlaps_dive1'] = get_stats(weights_file, ae_dataset_filepath_dive1)
+                    experiment["ae_class_APs_dive1"], experiment[
+                        "ae_size_APs_dive1"
+                    ], experiment["ae_APs_dive1"], experiment[
+                        "ae_class_overlaps_dive1"
+                    ], experiment[
+                        "ae_size_overlaps_dive1"
+                    ], experiment[
+                        "ae_overlaps_dive1"
+                    ] = get_stats(
+                        weights_file, ae_dataset_filepath_dive1
+                    )
 
-                    experiment['ae_class_APs_dive2'], \
-                    experiment['ae_size_APs_dive2'], \
-                    experiment['ae_APs_dive2'], \
-                    experiment['ae_class_overlaps_dive2'], \
-                    experiment['ae_size_overlaps_dive2'], \
-                    experiment['ae_overlaps_dive2'] = get_stats(weights_file, ae_dataset_filepath_dive2)
+                    experiment["ae_class_APs_dive2"], experiment[
+                        "ae_size_APs_dive2"
+                    ], experiment["ae_APs_dive2"], experiment[
+                        "ae_class_overlaps_dive2"
+                    ], experiment[
+                        "ae_size_overlaps_dive2"
+                    ], experiment[
+                        "ae_overlaps_dive2"
+                    ] = get_stats(
+                        weights_file, ae_dataset_filepath_dive2
+                    )
 
-                    experiment['ae_class_APs_dive3'], \
-                    experiment['ae_size_APs_dive3'], \
-                    experiment['ae_APs_dive3'], \
-                    experiment['ae_class_overlaps_dive3'], \
-                    experiment['ae_size_overlaps_dive3'], \
-                    experiment['ae_overlaps_dive3'] = get_stats(weights_file, ae_dataset_filepath_dive3)
+                    experiment["ae_class_APs_dive3"], experiment[
+                        "ae_size_APs_dive3"
+                    ], experiment["ae_APs_dive3"], experiment[
+                        "ae_class_overlaps_dive3"
+                    ], experiment[
+                        "ae_size_overlaps_dive3"
+                    ], experiment[
+                        "ae_overlaps_dive3"
+                    ] = get_stats(
+                        weights_file, ae_dataset_filepath_dive3
+                    )
                     # except:
                     #     print("issue getting loss values")
                 else:
@@ -277,7 +301,7 @@ def populate_experiments_dataframe():
 
                 update_dataframe(DF_FILEPATH, experiment)
             else:
-                print("already in dataframe, skipping "+filename)
+                print("already in dataframe, skipping " + filename)
 
     return pd.DataFrame(experiments)
 
@@ -289,9 +313,13 @@ def add_aestats_to_dataframe():
     directories = ["../../../paper_experiments/weights/" + f for f in files]
     for directory in directories:
         experiment = directory_to_experiment_info(directory)
-        dataset_filepath_dive1, dataset_filepath_dive2, dataset_filepath_dive3 = get_ae2000_dataset_filepaths(experiment)
+        dataset_filepath_dive1, dataset_filepath_dive2, dataset_filepath_dive3 = get_ae2000_dataset_filepaths(
+            experiment
+        )
         weights_folder = [f for f in os.walk(directory)][0][1][0]
-        weights_filepath = directory+ "/" + weights_folder + "/mask_rcnn_fk2018_best.h5"
+        weights_filepath = (
+            directory + "/" + weights_folder + "/mask_rcnn_fk2018_best.h5"
+        )
         experiment = df.loc[
             (df["colour_correction_type"] == experiment["colour_correction_type"])
             & (df["distortion_correction"] == experiment["distortion_correction"])
@@ -300,9 +328,15 @@ def add_aestats_to_dataframe():
         ]
         print(experiment)
         experiment = experiment.to_dict()
-        experiment['ae_class_APs_dive1'], experiment['ae_size_APs_dive1'], experiment['ae_APs_dive1'] = get_ae_stats(weights_filepath, dataset_filepath_dive1)
-        experiment['ae_class_APs_dive2'], experiment['ae_size_APs_dive2'], experiment['ae_APs_dive2'] = get_ae_stats(weights_filepath, dataset_filepath_dive2)
-        experiment['ae_class_APs_dive3'], experiment['ae_size_APs_dive3'], experiment['ae_APs_dive3'] = get_ae_stats(weights_filepath, dataset_filepath_dive3)
+        experiment["ae_class_APs_dive1"], experiment["ae_size_APs_dive1"], experiment[
+            "ae_APs_dive1"
+        ] = get_ae_stats(weights_filepath, dataset_filepath_dive1)
+        experiment["ae_class_APs_dive2"], experiment["ae_size_APs_dive2"], experiment[
+            "ae_APs_dive2"
+        ] = get_ae_stats(weights_filepath, dataset_filepath_dive2)
+        experiment["ae_class_APs_dive3"], experiment["ae_size_APs_dive3"], experiment[
+            "ae_APs_dive3"
+        ] = get_ae_stats(weights_filepath, dataset_filepath_dive3)
         print(experiment)
         new_experiments.append(experiment)
     df = pd.DataFrame(new_experiments)
@@ -313,11 +347,11 @@ def experiment_in_dataframe(df_filepath, experiment):
     df = pd.read_csv(df_filepath, index_col=0)
     print(df)
     pre_existing_experiment = df.loc[
-            (df["colour_correction_type"] == experiment["colour_correction_type"])
-            & (df["distortion_correction"] == experiment["distortion_correction"])
-            & (df["rescaled"] == experiment["rescaled"])
-            & (df["number"] == experiment["number"])
-        ]
+        (df["colour_correction_type"] == experiment["colour_correction_type"])
+        & (df["distortion_correction"] == experiment["distortion_correction"])
+        & (df["rescaled"] == experiment["rescaled"])
+        & (df["number"] == experiment["number"])
+    ]
     print(pre_existing_experiment)
     return not pre_existing_experiment.empty
 
