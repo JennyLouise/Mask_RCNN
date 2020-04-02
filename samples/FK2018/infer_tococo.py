@@ -17,12 +17,12 @@ import labelme
 try:
     import pycocotools.mask
 except ImportError:
-    print('Please install pycocotools:\n\n    pip install pycocotools\n')
+    print("Please install pycocotools:\n\n    pip install pycocotools\n")
     sys.exit(1)
 
 
 def generate_coco_file(results):
-    
+
     now = datetime.datetime.now()
 
     data = dict(
@@ -32,17 +32,13 @@ def generate_coco_file(results):
             version=None,
             year=now.year,
             contributor=None,
-            date_created=now.strftime('%Y-%m-%d %H:%M:%S.%f'),
+            date_created=now.strftime("%Y-%m-%d %H:%M:%S.%f"),
         ),
-        licenses=[dict(
-            url=None,
-            id=0,
-            name=None,
-        )],
+        licenses=[dict(url=None, id=0, name=None)],
         images=[
             # license, url, file_name, height, width, date_captured, id
         ],
-        type='instances',
+        type="instances",
         annotations=[
             # segmentation, area, iscrowd, image_id, bbox, category_id, id
         ],
@@ -65,59 +61,55 @@ def generate_coco_file(results):
     #         name=class_name,
     #     ))
 
-    out_ann_file = osp.join('./', 'annotations.json')
+    out_ann_file = osp.join("./", "annotations.json")
 
     print(results)
     exit()
 
     for image_id, label_file in enumerate(label_files):
-        print('Generating dataset from:', label_file)
+        print("Generating dataset from:", label_file)
         with open(label_file) as f:
             label_data = json.load(f)
 
         base = osp.splitext(osp.basename(label_file))[0]
-        out_img_file = osp.join(
-            args.output_dir, 'JPEGImages', base + '.jpg'
-        )
+        out_img_file = osp.join(args.output_dir, "JPEGImages", base + ".jpg")
 
-        img_file = osp.join(
-            osp.dirname(label_file), label_data['imagePath']
-        )
+        img_file = osp.join(osp.dirname(label_file), label_data["imagePath"])
         img = np.asarray(PIL.Image.open(img_file))
         PIL.Image.fromarray(img).save(out_img_file)
-        data['images'].append(dict(
-            license=0,
-            url=None,
-            file_name=osp.relpath(out_img_file, osp.dirname(out_ann_file)),
-            height=img.shape[0],
-            width=img.shape[1],
-            date_captured=None,
-            id=image_id,
-        ))
+        data["images"].append(
+            dict(
+                license=0,
+                url=None,
+                file_name=osp.relpath(out_img_file, osp.dirname(out_ann_file)),
+                height=img.shape[0],
+                width=img.shape[1],
+                date_captured=None,
+                id=image_id,
+            )
+        )
 
-        masks = {}                                     # for area
+        masks = {}  # for area
         segmentations = collections.defaultdict(list)  # for segmentation
         labels_indices = {}
-        for shape in label_data['shapes']:
-            points = shape['points']
-            label = shape['label']
-            shape_type = shape.get('shape_type', None)
-            mask = labelme.utils.shape_to_mask(
-                img.shape[:2], points, shape_type
-            )
+        for shape in label_data["shapes"]:
+            points = shape["points"]
+            label = shape["label"]
+            shape_type = shape.get("shape_type", None)
+            mask = labelme.utils.shape_to_mask(img.shape[:2], points, shape_type)
 
             if label in masks:
                 labels_indices[label] += 1
-                label=label+"-"+str(labels_indices[label])
+                label = label + "-" + str(labels_indices[label])
             else:
-                labels_indices[label]=0
+                labels_indices[label] = 0
 
             masks[label] = mask
             points = np.asarray(points).flatten().tolist()
             segmentations[label].append(points)
 
         for label, mask in masks.items():
-            cls_name = label.split('-')[0]
+            cls_name = label.split("-")[0]
             if cls_name not in class_name_to_id:
                 continue
             cls_id = class_name_to_id[cls_name]
@@ -127,16 +119,17 @@ def generate_coco_file(results):
             area = float(pycocotools.mask.area(mask))
             bbox = pycocotools.mask.toBbox(mask).flatten().tolist()
 
-            data['annotations'].append(dict(
-                id=len(data['annotations']),
-                image_id=image_id,
-                category_id=cls_id,
-                segmentation=segmentations[label],
-                area=area,
-                bbox=bbox,
-                iscrowd=0,
-            ))
+            data["annotations"].append(
+                dict(
+                    id=len(data["annotations"]),
+                    image_id=image_id,
+                    category_id=cls_id,
+                    segmentation=segmentations[label],
+                    area=area,
+                    bbox=bbox,
+                    iscrowd=0,
+                )
+            )
 
-    with open(out_ann_file, 'w') as f:
+    with open(out_ann_file, "w") as f:
         json.dump(data, f)
-
