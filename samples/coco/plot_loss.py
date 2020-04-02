@@ -2,7 +2,7 @@ import os
 
 
 def plot_loss():
-	directories = ['./']
+	directories = ['../../../paper_experiments/']
 	print(directories)
 	for directory in directories:
 

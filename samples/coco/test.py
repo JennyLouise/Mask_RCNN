@@ -1,22 +1,10 @@
 import os
-<<<<<<< HEAD
 os.environ["KMP_AFFINITY"]="disabled"
 import csv
 import math
 import tensorflow as tf
 print("LOOOK HERE, THE CODE GOT TO HERE, WOOOOOHOOOOOOOOOOO - imported tensorflow")
 import FK2018
-=======
-
-os.environ["KMP_AFFINITY"] = "disabled"
-import csv
-import math
-import tensorflow as tf
-
-print("LOOOK HERE, THE CODE GOT TO HERE, WOOOOOHOOOOOOOOOOO - imported tensorflow")
-import FK2018
-
->>>>>>> 40017663c9209b21ab0b1d891e07bfeff417c84f
 print("WAHOOOOO - imported FK2018")
 import mrcnn.model as modellib
 import pandas as pd
@@ -26,13 +14,8 @@ import argparse
 import matplotlib.pyplot as plt
 import seaborn as sns
 from keras import backend as K
-<<<<<<< HEAD
 conf = K.tf.ConfigProto(intra_op_parallelism_threads=1,
                            inter_op_parallelism_threads=1)
-=======
-
-conf = K.tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
->>>>>>> 40017663c9209b21ab0b1d891e07bfeff417c84f
 K.set_session(K.tf.Session(config=conf))
 print("imported keras")
 import logging
@@ -43,10 +26,6 @@ global ae_dive1_dataset
 global ae_dive2_dataset
 global ae_dive3_dataset
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 40017663c9209b21ab0b1d891e07bfeff417c84f
 def get_dataset_filepath(experiment):
     filepath = "/scratch/jw22g14/FK2018/tunasand/20180805_215810_ts_un6k/images/processed/image/i20180805_215810/"
     if experiment["colour_correction_type"] == "histogram_normalised":
@@ -64,11 +43,7 @@ def get_dataset_filepath(experiment):
     else:
         filepath += "no_distortion_correction/"
 
-<<<<<<< HEAD
     filepath += experiment['rescaled'] + "/"
-=======
-    filepath += experiment["rescaled"] + "/"
->>>>>>> 40017663c9209b21ab0b1d891e07bfeff417c84f
 
     filepath += "val"
     return filepath
@@ -264,9 +239,9 @@ def compute_batch_ap(image_ids, dataset, model, config):
                     singleton_masks = np.zeros([1024, 1024, 1])
                     singleton_masks[:, :, 0] = np.array(r["masks"][:, :, i])
                     AP, precisions, recalls, overlaps = utils.compute_ap(
-                        image["gt_bbox"],
-                        image["gt_class_id"],
-                        image["gt_mask"],
+                        image['gt_bbox'],
+                        image['gt_class_id'],
+                        image['gt_mask'],
                         np.array([roi]),
                         np.array([r["class_ids"][i]]),
                         np.array([r["scores"][i]]),
@@ -301,6 +276,7 @@ def load_dataset(filepath):
 def get_stats(weights_filepath, dataset):
     config = FK2018.FKConfig()
     print("got config")
+    
 
     class InferenceConfig(config.__class__):
         # Run detection on one image at a time
@@ -362,11 +338,7 @@ def directory_to_experiment_info(directory):
     else:
         distortion_correction = False
 
-<<<<<<< HEAD
     rescaled = directory.split("/")[-1].split("-")[2] 
-=======
-    rescaled = directory.split("/")[-1].split("-")[2]
->>>>>>> 40017663c9209b21ab0b1d891e07bfeff417c84f
     number = int(directory.split("/")[-1].split("-")[-1])
     experiment = {
         "colour_correction_type": colour_correction_type,
@@ -537,7 +509,6 @@ def create_dataframe(number):
     print("CREATING DATAFRAME")
     df = populate_experiments_dataframe(number)
 
-<<<<<<< HEAD
 def array_num_to_dataset(number):
     num_to_dataset_dict = {0:['histogram_normalised','no_distortion_correction','dropped_resolution'],
                            1:['histogram_normalised','no_distortion_correction','dropped_resolution_scaledup'],
