@@ -4,6 +4,7 @@ import csv
 import math
 import tensorflow as tf
 import FK2018
+
 import mrcnn.model as modellib
 import pandas as pd
 from mrcnn import utils
@@ -24,8 +25,7 @@ global ae_dive1_dataset
 global ae_dive2_dataset
 global ae_dive3_dataset
 
-import sys
-np.set_printoptions(threshold=sys.maxsize)
+
 
 def get_dataset_filepath(experiment):
     filepath = "/Volumes/jw22g14_phd/fk2018/tunasand/20180805_215810_ts_un6k/processed/image/i20180805_215810/for_iridis/"
@@ -151,6 +151,7 @@ def compute_both_batch_aps(image_ids, dataset, model, config):
     total_overlapping_pixels = 0
 
 
+
     for iteration in range(15):
         images=load_images(image_ids, dataset, config)
         logging.debug("running detection for iteration "+str(iteration))
@@ -168,14 +169,13 @@ def compute_both_batch_aps(image_ids, dataset, model, config):
                     image["gt_blank_class_ids"].append(0)
                 for i, roi in enumerate(r["rois"]):
                     mask_size = np.sum(r["masks"][:, :, i].flatten())
-                    print(r["masks"])
-                    print(r["masks"].shape)
                     predicted_pixels = np.any(r["masks"], axis=2)
                     groundtruth_pixels = np.any(image['gt_mask'], axis=2)
                     overlap_pixels = np.logical_and(predicted_pixels, groundtruth_pixels)
                     total_predicted_pixels += np.sum(predicted_pixels)
                     total_groundtruth_pixels += np.sum(groundtruth_pixels)
                     total_overlapping_pixels += np.sum(overlap_pixels)
+
                     singleton_rois = np.array([roi])
                     singleton_class_ids = np.array([r["class_ids"][i]])
                     singleton_scores = np.array([r["scores"][i]])
@@ -223,6 +223,7 @@ def compute_both_batch_aps(image_ids, dataset, model, config):
                     classless_overlaps_list.append(classless_overlaps)
     logging.debug("finished all 5 iterations for these images")
     return class_APs, size_APs, APs, class_overlaps, size_overlaps, overlaps_list, classless_APs, classless_size_APs, classless_size_overlaps, classless_overlaps_list, total_predicted_pixels, total_groundtruth_pixels, total_overlapping_pixels
+
 
 
 
@@ -331,6 +332,7 @@ def get_stats(weights_filepath, dataset):
     print(l2)
     return class_APs,  size_APs, APs, class_overlaps, size_overlaps, overlaps_list, classless_APs, classless_size_APs, classless_size_overlaps, classless_overlaps_list, total_predicted_pixels, total_groundtruth_pixels, total_overlapping_pixels
 
+
 def plot_class_boxplots():
     experiments = get_experiments()
     print(experiments.columns)
@@ -425,6 +427,7 @@ def add_single_experiment(directory, df_filepath, datasets):
                 experiment["total_groundtruth_pixels"], \
                 experiment["total_overlapping_pixels"] = get_stats(weights_file, datasets[0])
 
+
                 logging.debug("aestats, dive1")
                 experiment['ae_class_APs_dive1'], \
                 experiment['ae_size_APs_dive1'], \
@@ -439,6 +442,7 @@ def add_single_experiment(directory, df_filepath, datasets):
                 experiment["total_predicted_pixels"], \
                 experiment["total_groundtruth_pixels"], \
                 experiment["total_overlapping_pixels"]  = get_stats(weights_file, datasets[1])
+
 
                 logging.debug("aestats, dive2")
                 experiment['ae_class_APs_dive2'], \
@@ -469,6 +473,7 @@ def add_single_experiment(directory, df_filepath, datasets):
                 experiment["total_predicted_pixels"], \
                 experiment["total_groundtruth_pixels"], \
                 experiment["total_overlapping_pixels"]  = get_stats(weights_file, datasets[3])
+
                 # except:
                 #     print("issue getting loss values")
             else:
@@ -477,6 +482,7 @@ def add_single_experiment(directory, df_filepath, datasets):
             update_dataframe(df_filepath, experiment)
         else:
             print("already in dataframe, skipping "+filename)
+
 
 
 def populate_experiments_dataframe(number):
