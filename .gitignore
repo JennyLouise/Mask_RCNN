@@ -5,10 +5,8 @@ logs/
 results/
 temp/
 test/
-<<<<<<< HEAD
 *.csv
-=======
->>>>>>> 1e3e7a11b613ff9c5cd09cf52820dfa70ff26520
+*.png
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

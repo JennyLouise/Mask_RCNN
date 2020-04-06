@@ -68,6 +68,36 @@ def get_experiments():
 	return experiments
 
 
+def size_overlaps(size_overlaps_string):
+    size_list = []
+    overlaps_list = []
+    split_size_overlaps = size_overlaps_string[1:-1].split("dtype=float32)],")
+    for item in split_size_overlaps:
+        split = item.split(": ")
+        size = int(split[0])
+        overlaps = []
+        split_overlaps = split[1][1:-1].split("array(")[1:]
+        for overlaps_item in split_overlaps:
+            numbers = [float(x) for x in overlaps_item.split("]]")[0][2:].split(",")]
+            overlaps.append(max(numbers))
+        size_list.append(size)
+        overlaps_list.append(np.mean(overlaps))
+        # numbers =[float(x) for x in item.split("]]")[0][2:].split(',')]
+        # size_overlaps_list.append(max(numbers))
+    print(size_list)
+    print(overlaps_list)
+    return size_list, overlaps_list
+
+
+def overlaps(overlaps_string):
+    overlaps_list = []
+    split_overlaps = overlaps_string[1:-1].split("array(")[1:]
+    for item in split_overlaps:
+        numbers = [float(x) for x in item.split("]]")[0][2:].split(",")]
+        overlaps_list.append(max(numbers))
+    return np.mean(overlaps_list)
+
+
 def plot_boxplots(experiments):
     plt.clf()
     axes = plt.gca()
@@ -160,7 +190,7 @@ def plot_boxplots(experiments):
     g = sns.boxplot(
         x=experiments_dataframe["dataset"],
         y=experiments_dataframe["overlaps"],
-        hue=experiments_dataframe["elastic_distortions"],
+        hue=experiments_dataframe["rescaled"],
         palette="deep",
     )
 
@@ -168,11 +198,11 @@ def plot_boxplots(experiments):
 
     # g.get_legend().remove()
     # g.set_xticklabels(g.get_xticklabels(), rotation=45)
-    plt.title("Colour correction type - across classes")
+    plt.title("Rescaling")
     # plt.xlabel('Epoch')
     plt.ylabel("Mean overlap")
 
-    plt.savefig("elastic_distortions_plot")
+    plt.savefig("rescaling_boxplot")
 
 def group_experiments_by(experiments, category):
     category_values = []
@@ -497,7 +527,7 @@ def plot_colour_correction_stackedarea(experiments):
 
 experiments = pd.read_csv("./dataframe_0.csv")
 print(experiments)
-# plot_boxplots(experiments)
+plot_boxplots(experiments)
 # plot_colour_correction_stackedarea(experiments)
 # plot_colour_correction_lossvsvalloss(experiments)
-plot_size_overlap_scatter(experiments)
+# plot_size_overlap_scatter(experiments)
