@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 import csv
 import os
 import math
@@ -6,6 +7,11 @@ import matplotlib.lines as mlines
 import numpy as np
 import seaborn as sns
 import pandas as pd
+from sklearn.decomposition import PCA
+from itertools import chain
+import logging
+from matplotlib.patches import Patch
+
 
 
 
@@ -63,72 +69,435 @@ def get_experiments():
 
 
 def plot_boxplots(experiments):
-	plt.clf()
-	axes = plt.gca()
-	axes.set_ylim([0,4.6])
-	fig, ax = plt.subplots()
+    plt.clf()
+    axes = plt.gca()
+    axes.set_ylim([0, 4.6])
+    fig, ax = plt.subplots()
 
-	experiments_dataframe = pd.DataFrame(experiments)
-	print(experiments_dataframe)
+    new_experiments = []
+    print(experiments.keys())
+    for index, experiment in experiments.iterrows():
+        print(experiment)
+        experiment["val_mrcnn_class_loss"] = experiment["val_mrcnn_class_loss"][
+            1:-1
+        ].split(", ")
+        experiment["val_loss"] = experiment["val_loss"][1:-1].split(", ")
+        experiment["overlaps"] = overlaps(experiment["overlaps"])
+        experiment["ae_overlaps_dive1"] = overlaps(experiment["ae_overlaps_dive1"])
+        experiment["ae_overlaps_dive2"] = overlaps(experiment["ae_overlaps_dive2"])
+        experiment["ae_overlaps_dive3"] = overlaps(experiment["ae_overlaps_dive3"])
+        experiment["size_overlaps"] = size_overlaps(experiment["size_overlaps"])
+        print(len(experiment["val_mrcnn_class_loss"]))
+        print(len(experiment["val_loss"]))
+        new_row = {
+            "rescaled": experiment["rescaled"],
+            "distortion_correction": experiment["distortion_correction"],
+            "minimum_loss": experiment["minimum_loss"],
+            "number": experiment["number"],
+            "minimum_val_loss": experiment["minimum_val_loss"],
+            "elastic_distortions": experiment["elastic_distortions"],
+            "colour_correction_type": experiment["colour_correction_type"],
+            "separate_channel_ops": experiment["separate_channel_ops"],
+            "combo": experiment["colour_correction_type"]
+            + str(experiment["distortion_correction"])
+            + str(experiment["rescaled"]),
+            "overlaps": experiment["overlaps"],
+            "dataset": 'tunasand',
+        }
+        new_experiments.append(new_row)
+        new_row = {
+            "rescaled": experiment["rescaled"],
+            "distortion_correction": experiment["distortion_correction"],
+            "minimum_loss": experiment["minimum_loss"],
+            "number": experiment["number"],
+            "minimum_val_loss": experiment["minimum_val_loss"],
+            "elastic_distortions": experiment["elastic_distortions"],
+            "colour_correction_type": experiment["colour_correction_type"],
+            "separate_channel_ops": experiment["separate_channel_ops"],
+            "combo": experiment["colour_correction_type"]
+            + str(experiment["distortion_correction"])
+            + str(experiment["rescaled"]),
+            "overlaps": experiment["ae_overlaps_dive1"],
+            "dataset": 'ae_dive1',
+        }
+        new_experiments.append(new_row)
+        new_row = {
+            "rescaled": experiment["rescaled"],
+            "distortion_correction": experiment["distortion_correction"],
+            "minimum_loss": experiment["minimum_loss"],
+            "number": experiment["number"],
+            "minimum_val_loss": experiment["minimum_val_loss"],
+            "elastic_distortions": experiment["elastic_distortions"],
+            "colour_correction_type": experiment["colour_correction_type"],
+            "separate_channel_ops": experiment["separate_channel_ops"],
+            "combo": experiment["colour_correction_type"]
+            + str(experiment["distortion_correction"])
+            + str(experiment["rescaled"]),
+            "overlaps": experiment["ae_overlaps_dive2"],
+            "dataset": 'ae_dive2',
+        }
+        new_experiments.append(new_row)
+        new_row = {
+            "rescaled": experiment["rescaled"],
+            "distortion_correction": experiment["distortion_correction"],
+            "minimum_loss": experiment["minimum_loss"],
+            "number": experiment["number"],
+            "minimum_val_loss": experiment["minimum_val_loss"],
+            "elastic_distortions": experiment["elastic_distortions"],
+            "colour_correction_type": experiment["colour_correction_type"],
+            "separate_channel_ops": experiment["separate_channel_ops"],
+            "combo": experiment["colour_correction_type"]
+            + str(experiment["distortion_correction"])
+            + str(experiment["rescaled"]),
+            "overlaps": experiment["ae_overlaps_dive3"],
+            "dataset": 'ae_dive3',
+        }
+        new_experiments.append(new_row)
 
-	sns.boxplot(x=experiments_dataframe['distortion_correction'],y=experiments_dataframe['minimum_val_loss'],hue=experiments_dataframe['colour_correction_type'], palette="Blues")
-	plt.title('Colour correction type')
-	plt.xlabel('Epoch')
-	plt.ylabel('Loss Value')
+    experiments_dataframe = pd.DataFrame(new_experiments)
+    print(experiments_dataframe)
 
-	plt.show()
-
-def plot_colour_correction_graphs(experiments):
-	colour_correction_type_lists={'ac':{'loss':[], 'val_loss':[]}, 'gw':{'loss':[], 'val_loss':[]}, 'histogram':{'loss':[], 'val_loss':[]}}
-
-
-	for experiment in experiments:
-		colour_correction_type_lists[experiment['colour_correction_type']]['loss'].append(experiment['loss'])
-		colour_correction_type_lists[experiment['colour_correction_type']]['val_loss'].append(experiment['val_loss'])
+    g = sns.boxplot(
+        x=experiments_dataframe["dataset"],
+        y=experiments_dataframe["overlaps"],
+        hue=experiments_dataframe["elastic_distortions"],
+        palette="deep",
+    )
 
 
 
-	plt.clf()
-	axes = plt.gca()
-	axes.set_ylim([0,4.6])
-	fig, ax = plt.subplots()
+    # g.get_legend().remove()
+    # g.set_xticklabels(g.get_xticklabels(), rotation=45)
+    plt.title("Colour correction type - across classes")
+    # plt.xlabel('Epoch')
+    plt.ylabel("Mean overlap")
 
-	plt.plot(np.mean(colour_correction_type_lists['ac']['loss'], axis=0), label='Attenuation Correction', color='blue', linestyle='-')
-	plt.plot(np.mean(colour_correction_type_lists['ac']['val_loss'], axis=0), color='blue', linestyle='--')
-	plt.plot(np.mean(colour_correction_type_lists['gw']['loss'], axis=0), label='Greyworld Correction', color='red', linestyle='-')
-	plt.plot(np.mean(colour_correction_type_lists['gw']['val_loss'], axis=0), color='red', linestyle='--')
-	plt.plot(np.mean(colour_correction_type_lists['histogram']['loss'], axis=0), label='Histogram Normalisation', color='green', linestyle='-')
-	plt.plot(np.mean(colour_correction_type_lists['histogram']['val_loss'], axis=0), color='green', linestyle='--')
+    plt.savefig("elastic_distortions_plot")
+
+def group_experiments_by(experiments, category):
+    category_values = []
+    for i, experiment in experiments.iterrows():
+        if not experiment[category] in category_values:
+            category_values.append(experiment[category])
+            # print(experiments.where(experiments[category]==category_values[0]))
+    new_experiments = []
+    for category_value in category_values:
+        category_experiments_indices = experiments[category] == category_value
+        category_experiments = experiments[category_experiments_indices]
+        new_experiment = {
+            category: category_value,
+            "val_mrcnn_class_loss": np.mean(
+                np.array(list(category_experiments["val_mrcnn_class_loss"])), axis=0
+            ),
+            "val_mrcnn_bbox_loss": np.mean(
+                np.array(list(category_experiments["val_mrcnn_bbox_loss"])), axis=0
+            ),
+            "val_mrcnn_mask_loss": np.mean(
+                np.array(list(category_experiments["val_mrcnn_mask_loss"])), axis=0
+            ),
+            "val_rpn_bbox_loss": np.mean(
+                np.array(list(category_experiments["val_rpn_bbox_loss"])), axis=0
+            ),
+            "val_rpn_class_loss": np.mean(
+                np.array(list(category_experiments["val_rpn_class_loss"])), axis=0
+            ),
+            "mrcnn_class_loss": np.mean(
+                np.array(list(category_experiments["mrcnn_class_loss"])), axis=0
+            ),
+            "mrcnn_bbox_loss": np.mean(
+                np.array(list(category_experiments["mrcnn_bbox_loss"])), axis=0
+            ),
+            "mrcnn_mask_loss": np.mean(
+                np.array(list(category_experiments["mrcnn_mask_loss"])), axis=0
+            ),
+            "rpn_bbox_loss": np.mean(
+                np.array(list(category_experiments["rpn_bbox_loss"])), axis=0
+            ),
+            "rpn_class_loss": np.mean(
+                np.array(list(category_experiments["rpn_class_loss"])), axis=0
+            ),
+        }
+        if "size_list" in category_experiments.keys():
+            new_experiment["size_list"] = []
+            new_experiment["overlaps_list"] = []
+            for item in category_experiments["size_list"]:
+                new_experiment["size_list"].extend(item)
+            for item in category_experiments["overlaps_list"]:
+                new_experiment["overlaps_list"].extend(item)
+        new_experiments.append(new_experiment)
+
+    experiments_dataframe = pd.DataFrame(new_experiments)
+    return experiments_dataframe
 
 
-	#TODO add legend items for training loss vs validation loss
-	plt.legend()
-	plt.title('Colour correction type')
-	plt.xlabel('Epoch')
-	plt.ylabel('Loss Value')
 
-	plt.show()
+def plot_colour_correction_lossvsvalloss(experiments):
+
+    new_experiments = []
+    print(experiments.keys())
+    for index, experiment in experiments.iterrows():
+        print(experiment)
+        experiment["val_mrcnn_class_loss"] = [
+            float(n) for n in experiment["val_mrcnn_class_loss"][1:-1].split(", ")
+        ]
+        experiment["val_mrcnn_bbox_loss"] = [
+            float(n) for n in experiment["val_mrcnn_bbox_loss"][1:-1].split(", ")
+        ]
+        experiment["val_mrcnn_mask_loss"] = [
+            float(n) for n in experiment["val_mrcnn_mask_loss"][1:-1].split(", ")
+        ]
+        experiment["mrcnn_bbox_loss"] = [
+            float(n) for n in experiment["mrcnn_bbox_loss"][1:-1].split(", ")
+        ]
+        experiment["val_rpn_bbox_loss"] = [
+            float(n) for n in experiment["val_rpn_bbox_loss"][1:-1].split(", ")
+        ]
+        experiment["mrcnn_mask_loss"] = [
+            float(n) for n in experiment["mrcnn_mask_loss"][1:-1].split(", ")
+        ]
+        experiment["rpn_class_loss"] = [
+            float(n) for n in experiment["rpn_class_loss"][1:-1].split(", ")
+        ]
+        experiment["rpn_bbox_loss"] = [
+            float(n) for n in experiment["rpn_bbox_loss"][1:-1].split(", ")
+        ]
+        experiment["val_loss"] = [
+            float(n) for n in experiment["val_loss"][1:-1].split(", ")
+        ]
+        experiment["mrcnn_class_loss"] = [
+            float(n) for n in experiment["mrcnn_class_loss"][1:-1].split(", ")
+        ]
+        experiment["val_rpn_class_loss"] = [
+            float(n) for n in experiment["val_rpn_class_loss"][1:-1].split(", ")
+        ]
+        experiment["loss"] = [float(n) for n in experiment["loss"][1:-1].split(", ")]
+        experiment["overlaps"] = overlaps(experiment["overlaps"])
+        for epoch in range(len(experiment["val_loss"])):
+            new_row = {
+                "rescaled": experiment["rescaled"],
+                "distortion_correction": experiment["distortion_correction"],
+                "minimum_loss": experiment["minimum_loss"],
+                "number": experiment["number"],
+                "minimum_val_loss": experiment["minimum_val_loss"],
+                "elastic_distortions": experiment["elastic_distortions"],
+                "colour_correction_type": experiment["colour_correction_type"],
+                "separate_channel_ops": experiment["separate_channel_ops"],
+                "epoch": epoch,
+                "mrcnn_mask_loss": float(experiment["mrcnn_mask_loss"][epoch]),
+                "val_mrcnn_bbox_loss": float(experiment["val_mrcnn_bbox_loss"][epoch]),
+                "loss": float(experiment["loss"][epoch]),
+                "val_mrcnn_class_loss": float(
+                    experiment["val_mrcnn_class_loss"][epoch]
+                ),
+                "val_mrcnn_mask_loss": float(experiment["val_mrcnn_mask_loss"][epoch]),
+                "mrcnn_bbox_loss": float(experiment["mrcnn_bbox_loss"][epoch]),
+                "val_rpn_bbox_loss": float(experiment["val_rpn_bbox_loss"][epoch]),
+                "rpn_class_loss": float(experiment["rpn_class_loss"][epoch]),
+                "rpn_bbox_loss": float(experiment["rpn_bbox_loss"][epoch]),
+                "mrcnn_class_loss": float(experiment["mrcnn_class_loss"][epoch]),
+                "val_rpn_class_loss": float(experiment["val_rpn_class_loss"][epoch]),
+                "val_loss": float(experiment["val_loss"][epoch]),
+                "combo": experiment["colour_correction_type"]
+                + str(experiment["distortion_correction"])
+                + str(experiment["rescaled"]),
+            }
+            new_experiments.append(new_row)
+
+    experiments_dataframe = pd.DataFrame(new_experiments)
+    sns.set()
+    plt.clf()
+    axes = plt.gca()
+    axes.set_ylim([0, 4.6])
+    fig, ax = plt.subplots()
+
+    sns.lineplot(x="epoch", y="val_loss", data=experiments_dataframe, hue="combo")
+    print(len(ax.lines))
+    for i in range(len(ax.lines)):
+        ax.lines[i].set_linestyle("--")
+    g = sns.lineplot(x="epoch", y="loss", data=experiments_dataframe, hue="combo")
+    g.legend_.remove()
+    # ax.lines[3].set_linestyle("--")
+    print(ax.lines)
+    print(ax.lines[3].get_linestyle())
+    # plt.legend()
+    # handles, labels = ax.get_legend_handles_labels()
+    # custom_lines = [Patch(facecolor=ax.lines[0].get_color()),
+    #                 Patch(facecolor=ax.lines[1].get_color()),
+    #                 Patch(facecolor=ax.lines[2].get_color()),
+    #                 # Patch(facecolor=ax.lines[3].get_color()),
+    #                 ]
+    # handles=custom_lines
+    # labels = labels[1:4]
+    # handles.extend([ax.lines[4], ax.lines[0]])
+
+    # labels.extend(['training', 'validation'])
+    # print(handles)
+    # print(labels)
+    # ax.legend(handles=[], labels=[])
+    plt.title("Loss and validation loss per epoch")
+    plt.savefig("combo_type_loss_vs_valloss")
+
+
+def stringlist_to_list(stringlist):
+    real_list = [float(n) for n in stringlist[1:-1].split(", ")]
+    return real_list
+
+
+def plot_size_overlap_scatter(experiments):
+    new_experiments = []
+    print(experiments.keys())
+    for index, experiment in experiments.iterrows():
+        print(experiment)
+        for value in [
+            "val_mrcnn_class_loss",
+            "val_mrcnn_bbox_loss",
+            "val_mrcnn_mask_loss",
+            "mrcnn_bbox_loss",
+            "val_rpn_bbox_loss",
+            "mrcnn_mask_loss",
+            "rpn_class_loss",
+            "rpn_bbox_loss",
+            "val_loss",
+            "mrcnn_class_loss",
+            "val_rpn_class_loss",
+            "loss",
+        ]:
+            experiment[value] = stringlist_to_list(experiment[value])
+        experiment["overlaps"] = overlaps(experiment["overlaps"])
+        experiment["size_list"], experiment["overlaps_list"] = size_overlaps(
+            experiment["size_overlaps"]
+        )
+        new_experiments.append(experiment)
+
+    experiments_dataframe = pd.DataFrame(new_experiments)
+    experiments_dataframe = group_experiments_by(
+        experiments_dataframe, "rescaled"
+    )
+
+    sns.set()
+    for i, experiment in experiments_dataframe.iterrows():
+        x = experiment["size_list"]
+        y = experiment["overlaps_list"]
+        plt.scatter(x, y, marker=".", s=1, label=experiment['rescaled'])
+        axes = plt.gca()
+        axes.set_xlim([0, 30000])
+        axes.set_ylim([-0.01,1])
+        axes.set_ylabel("IOU scores")
+        axes.set_xlabel("Size of groundtruth segment in pixels")
+        plt.title("IOU to size of groundtruth scatterplot - "+experiment['rescaled'])
+        plt.savefig(experiment['rescaled']+"_scatter_plot")
+        plt.clf()
+
+    for i, experiment in experiments_dataframe.iterrows():
+        x = experiment["size_list"]
+        y = experiment["overlaps_list"]
+        plt.scatter(x, y, marker=".", s=1, label=experiment['rescaled'])
+    axes = plt.gca()
+    axes.set_xlim([0, 30000])
+    axes.set_ylim([-0.01,1])
+    axes.set_ylabel("IOU scores")
+    axes.set_xlabel("Size of groundtruth segment in pixels")
+    plt.legend()
+    plt.title("IOU to size of groundtruth scatterplot - all rescaling")
+    plt.savefig("all_rescaling_scatter_plot")
+    plt.clf()
 
 
 
+def plot_colour_correction_stackedarea(experiments):
+    plt.clf()
+    axes = plt.gca()
+    axes.set_ylim([0, 4.6])
+    fig, ax = plt.subplots()
 
-	# 
+    new_experiments = []
+    print(experiments.keys())
+    for index, experiment in experiments.iterrows():
+        print(experiment)
+        for value in [
+            "val_mrcnn_class_loss",
+            "val_mrcnn_bbox_loss",
+            "val_mrcnn_mask_loss",
+            "mrcnn_bbox_loss",
+            "val_rpn_bbox_loss",
+            "mrcnn_mask_loss",
+            "rpn_class_loss",
+            "rpn_bbox_loss",
+            "val_loss",
+            "mrcnn_class_loss",
+            "val_rpn_class_loss",
+            "loss",
+        ]:
+            experiment[value] = stringlist_to_list(experiment[value])
+        experiment["overlaps"] = overlaps(experiment["overlaps"])
 
-plot_boxplots(get_experiments())
+        new_experiments.append(experiment)
 
-		# print(loss)
-		# print(val_loss)
-		# plt.clf()
-		# axes = plt.gca()
-		# axes.set_ylim([0,4.6])
-		# plt.plot(range(len(loss)), loss, label='Loss')
-		# plt.plot(range(len(loss)), val_loss, label='Validation Loss')
-		# plt.legend()
+    experiments_dataframe = pd.DataFrame(new_experiments)
+    experiments_dataframe = group_experiments_by(
+        experiments_dataframe, "rescaled"
+    )
 
 
-		# plt.title(experiment_name + 'experiment '+filename.split('_')[1].split('.')[0])
+    sns.set(rc={"lines.linewidth":0.3})
+    plt.clf()
+    axes = plt.gca()
+    axes.set_ylim([0, 4.6])
+    fig, ax = plt.subplots()
 
-		# plt.xlabel('Epoch')
-		# plt.ylabel('Loss Value')
+    for i, experiment in experiments_dataframe.iterrows():
+        y = [
+            experiment["rpn_bbox_loss"],
+            experiment["rpn_class_loss"],
+            experiment["mrcnn_bbox_loss"],
+            experiment["mrcnn_mask_loss"],
+            experiment["mrcnn_class_loss"],
+        ]
+        labels = [
+            "rpn_bbox_loss",
+            "rpn_class_loss",
+            "mrcnn_bbox_loss",
+            "mrcnn_mask_loss",
+            "mrcnn_class_loss",
+        ]
+        x = range(1, 101)
+        axes = plt.gca()
+        axes.set_ylim([0, 4.6])
+        axes.set_ylabel("Training Epoch")
+        axes.set_xlabel("Training Loss")
+        plt.stackplot(x, y, labels=labels)
+        plt.legend()
+        plt.title(experiment["rescaled"])
+        plt.savefig(experiment["rescaled"] + "_stacked_loss")
+        plt.clf()
+        axes = plt.gca()
+        axes.set_ylim([0, 4.6])
+        y = [
+            experiment["val_rpn_bbox_loss"],
+            experiment["val_rpn_class_loss"],
+            experiment["val_mrcnn_bbox_loss"],
+            experiment["val_mrcnn_mask_loss"],
+            experiment["val_mrcnn_class_loss"],
+        ]
+        labels = [
+            "val_rpn_bbox_loss",
+            "val_rpn_class_loss",
+            "val_mrcnn_bbox_loss",
+            "val_mrcnn_mask_loss",
+            "val_mrcnn_class_loss",
+        ]
+        plt.stackplot(x, y, labels=labels)
+        axes.set_ylabel("Training Epoch")
+        axes.set_xlabel("Validation Loss")
+        plt.legend()
+        plt.title(experiment["rescaled"])
+        plt.savefig(experiment["rescaled"] + "_stacked_val_loss")
+        plt.clf()
 
-		# plt.savefig('./'+directory+'/'+filename.split('.')[0]+'.png')
+
+experiments = pd.read_csv("./dataframe_0.csv")
+print(experiments)
+# plot_boxplots(experiments)
+# plot_colour_correction_stackedarea(experiments)
+# plot_colour_correction_lossvsvalloss(experiments)
+plot_size_overlap_scatter(experiments)
