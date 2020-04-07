@@ -13,59 +13,87 @@ import logging
 from matplotlib.patches import Patch
 
 
-
-
-
 def get_experiments():
-	experiments=[]
-	directories = [x for x in os.walk('../../../')][0][1]
-	for directory in directories:
-		colour_correction_type = directory.split('_')[0]
+    experiments = []
+    directories = [x for x in os.walk("../../../")][0][1]
+    for directory in directories:
+        colour_correction_type = directory.split("_")[0]
 
-		if(directory.split('_')[1]=='dist'):
-			distortion_correction = True
-		else:
-			distortion_correction = False
+        if directory.split("_")[1] == "dist":
+            distortion_correction = True
+        else:
+            distortion_correction = False
 
-		if(directory.split('_')[2]=='rescaled'):
-			rescaled = True
-		else:
-			rescaled = False
+        if directory.split("_")[2] == "rescaled":
+            rescaled = True
+        else:
+            rescaled = False
 
-		filenames=[f for f in os.listdir(directory) if f[-4:] == '.csv']
-		print filenames
+        filenames = [f for f in os.listdir(directory) if f[-4:] == ".csv"]
+        print(filenames)
 
-		for filename in filenames:
-			experiment={'colour_correction_type': colour_correction_type, 'distortion_correction': distortion_correction, 'rescaled': rescaled}
-			with open('./'+directory+'/'+filename, 'r') as csvfile:
-				plots= csv.reader(csvfile, delimiter=',')
-				headers = next(plots, None)
-				for header in headers:
-					experiment[header] =[]
-				for row in plots:
-					for i, header in enumerate(headers):
-						experiment[header].append(float(row[i]))
+        for filename in filenames:
+            experiment = {
+                "colour_correction_type": colour_correction_type,
+                "distortion_correction": distortion_correction,
+                "rescaled": rescaled,
+            }
+            with open("./" + directory + "/" + filename, "r") as csvfile:
+                plots = csv.reader(csvfile, delimiter=",")
+                headers = next(plots, None)
+                for header in headers:
+                    experiment[header] = []
+                for row in plots:
+                    for i, header in enumerate(headers):
+                        experiment[header].append(float(row[i]))
 
-			experiment['minimum_val_loss']=min(experiment['val_loss'])
-			experiment['minimum_loss']=min(experiment['loss'])
-			number = int(filename.split('_')[1].split('.')[0])
-			experiment['number'] = number
-			experiment['repeat'] = math.floor(number/4)
-			if((number%4)/2<1):
-				experiment['elastic_distortions']=True
-			else:
-				experiment['elastic_distortions']=False
-			if((number%4)%2 != 0):
-				experiment['separate_channel_ops']=True
-			else:
-				experiment['separate_channel_ops']=False
+            experiment["minimum_val_loss"] = min(experiment["val_loss"])
+            experiment["minimum_loss"] = min(experiment["loss"])
+            number = int(filename.split("_")[1].split(".")[0])
+            experiment["number"] = number
+            experiment["repeat"] = math.floor(number / 4)
+            if (number % 4) / 2 < 1:
+                experiment["elastic_distortions"] = True
+            else:
+                experiment["elastic_distortions"] = False
+            if (number % 4) % 2 != 0:
+                experiment["separate_channel_ops"] = True
+            else:
+                experiment["separate_channel_ops"] = False
 
-			print(experiment)
-			experiments.append(experiment)
+            print(experiment)
+            experiments.append(experiment)
+
+    return experiments
 
 
-
-	return experiments
+def size_class_overlaps(size_overlaps_string, class_overlaps_string):
+    size_list = []
+    overlaps_list = []
+    class_list = []
+    split_size_overlaps = size_overlaps_string[1:-1].split("dtype=float32)],")
+    split_class_overlaps = class_overlaps_string[1:-1].split("dtype=float32)],")
+    for item in split_size_overlaps:
+        split = item.split(": ")
+        size = int(split[0])
+        overlaps = []
+        split_overlaps = split[1][1:-1].split("array(")[1:]
+        for overlaps_item in split_overlaps:
+            numbers = [float(x) for x in overlaps_item.split("]]")[0][2:].split(",")]
+            overlaps.append(max(numbers))
+        size_list.append(size)
+        overlaps_list.append(np.mean(overlaps))
+    for i, item in enumerate(split_class_overlaps):
+        split = item.split(": ")
+        class_id = split[0]
+        overlaps = []
+        split_overlaps = split[1][1:-1].split("array(")[1:]
+        for overlaps_item in split_overlaps:
+            numbers = [float(x) for x in overlaps_item.split("]]")[0][2:].split(",")]
+            overlaps.append(max(numbers))
+        class_list.append(class_id)
+        print(np.mean(overlaps)==overlaps_list[i])
+    return size_list, overlaps_list, class_list
 
 
 def size_overlaps(size_overlaps_string):
@@ -132,7 +160,7 @@ def plot_boxplots(experiments):
             + str(experiment["distortion_correction"])
             + str(experiment["rescaled"]),
             "overlaps": experiment["overlaps"],
-            "dataset": 'tunasand',
+            "dataset": "tunasand",
         }
         new_experiments.append(new_row)
         new_row = {
@@ -148,7 +176,7 @@ def plot_boxplots(experiments):
             + str(experiment["distortion_correction"])
             + str(experiment["rescaled"]),
             "overlaps": experiment["ae_overlaps_dive1"],
-            "dataset": 'ae_dive1',
+            "dataset": "ae_dive1",
         }
         new_experiments.append(new_row)
         new_row = {
@@ -164,7 +192,7 @@ def plot_boxplots(experiments):
             + str(experiment["distortion_correction"])
             + str(experiment["rescaled"]),
             "overlaps": experiment["ae_overlaps_dive2"],
-            "dataset": 'ae_dive2',
+            "dataset": "ae_dive2",
         }
         new_experiments.append(new_row)
         new_row = {
@@ -180,7 +208,7 @@ def plot_boxplots(experiments):
             + str(experiment["distortion_correction"])
             + str(experiment["rescaled"]),
             "overlaps": experiment["ae_overlaps_dive3"],
-            "dataset": 'ae_dive3',
+            "dataset": "ae_dive3",
         }
         new_experiments.append(new_row)
 
@@ -194,8 +222,6 @@ def plot_boxplots(experiments):
         palette="deep",
     )
 
-
-
     # g.get_legend().remove()
     # g.set_xticklabels(g.get_xticklabels(), rotation=45)
     plt.title("Rescaling")
@@ -203,6 +229,7 @@ def plot_boxplots(experiments):
     plt.ylabel("Mean overlap")
 
     plt.savefig("rescaling_boxplot")
+
 
 def group_experiments_by(experiments, category):
     category_values = []
@@ -258,7 +285,6 @@ def group_experiments_by(experiments, category):
 
     experiments_dataframe = pd.DataFrame(new_experiments)
     return experiments_dataframe
-
 
 
 def plot_colour_correction_lossvsvalloss(experiments):
@@ -394,44 +420,49 @@ def plot_size_overlap_scatter(experiments):
         ]:
             experiment[value] = stringlist_to_list(experiment[value])
         experiment["overlaps"] = overlaps(experiment["overlaps"])
-        experiment["size_list"], experiment["overlaps_list"] = size_overlaps(
-            experiment["size_overlaps"]
-        )
+        experiment["ae_overlaps_dive1"] = overlaps(experiment["ae_overlaps_dive1"])
+        experiment["ae_overlaps_dive2"] = overlaps(experiment["ae_overlaps_dive2"])
+        experiment["ae_overlaps_dive3"] = overlaps(experiment["ae_overlaps_dive3"])
+        experiment["size_list"], experiment["overlaps_list"], experiment["class_list"] = size_overlaps(experiment["size_overlaps"])
+        experiment["ae_size_list_dive1"], experiment["ae_overlaps_list_dive1"], experiment["ae_class_list_dive1"] = size_overlaps(experiment["ae_size_overlaps_dive1"], experiment["ae_class_overlaps_dive1"])
+        experiment["ae_size_list_dive2"], experiment["ae_overlaps_list_dive2"], experiment["ae_class_list_dive2"] = size_overlaps(experiment["ae_size_overlaps_dive2"], experiment["ae_class_overlaps_dive2"])
+        experiment["ae_size_list_dive3"], experiment["ae_overlaps_list_dive3"], experiment["ae_class_list_dive3"] = size_overlaps(experiment["ae_size_overlaps_dive3"], experiment["ae_class_overlaps_dive3"])
         new_experiments.append(experiment)
 
     experiments_dataframe = pd.DataFrame(new_experiments)
-    experiments_dataframe = group_experiments_by(
-        experiments_dataframe, "rescaled"
-    )
+    experiments_dataframe = group_experiments_by(experiments_dataframe, "rescaled")
 
     sns.set()
     for i, experiment in experiments_dataframe.iterrows():
-        x = experiment["size_list"]
-        y = experiment["overlaps_list"]
-        plt.scatter(x, y, marker=".", s=1, label=experiment['rescaled'])
+        data=pd.DataFrame([experiment["size_list"], experiment["overlaps_list"], experiment["class_list"]])
+        sns.scatterplot(x="size_list", y="overlaps_list", hue="class_list", data=data)
+        # x = experiment["size_list"]
+        # y = experiment["overlaps_list"]
+        # plt.scatter(x, y, marker=".", s=1, label=experiment["rescaled"])
         axes = plt.gca()
         axes.set_xlim([0, 30000])
-        axes.set_ylim([-0.01,1])
+        axes.set_ylim([-0.01, 1])
         axes.set_ylabel("IOU scores")
         axes.set_xlabel("Size of groundtruth segment in pixels")
-        plt.title("IOU to size of groundtruth scatterplot - "+experiment['rescaled'])
-        plt.savefig(experiment['rescaled']+"_scatter_plot")
+        plt.title("IOU to size of groundtruth scatterplot - " + experiment["rescaled"])
+        plt.savefig(experiment["rescaled"] + "_scatter_plot")
         plt.clf()
 
     for i, experiment in experiments_dataframe.iterrows():
-        x = experiment["size_list"]
-        y = experiment["overlaps_list"]
-        plt.scatter(x, y, marker=".", s=1, label=experiment['rescaled'])
+        data=pd.DataFrame([experiment["size_list"], experiment["overlaps_list"], experiment["class_list"]])
+        sns.scatterplot(x="size_list", y="overlaps_list", hue="class_list", data=data)
+        # x = experiment["size_list"]
+        # y = experiment["overlaps_list"]
+        # plt.scatter(x, y, marker=".", s=1, label=experiment["rescaled"])
     axes = plt.gca()
     axes.set_xlim([0, 30000])
-    axes.set_ylim([-0.01,1])
+    axes.set_ylim([-0.01, 1])
     axes.set_ylabel("IOU scores")
     axes.set_xlabel("Size of groundtruth segment in pixels")
     plt.legend()
     plt.title("IOU to size of groundtruth scatterplot - all rescaling")
     plt.savefig("all_rescaling_scatter_plot")
     plt.clf()
-
 
 
 def plot_colour_correction_stackedarea(experiments):
@@ -464,12 +495,9 @@ def plot_colour_correction_stackedarea(experiments):
         new_experiments.append(experiment)
 
     experiments_dataframe = pd.DataFrame(new_experiments)
-    experiments_dataframe = group_experiments_by(
-        experiments_dataframe, "rescaled"
-    )
+    experiments_dataframe = group_experiments_by(experiments_dataframe, "rescaled")
 
-
-    sns.set(rc={"lines.linewidth":0.3})
+    sns.set(rc={"lines.linewidth": 0.3})
     plt.clf()
     axes = plt.gca()
     axes.set_ylim([0, 4.6])
@@ -527,7 +555,7 @@ def plot_colour_correction_stackedarea(experiments):
 
 experiments = pd.read_csv("./dataframe_0.csv")
 print(experiments)
-plot_boxplots(experiments)
+# plot_boxplots(experiments)
 # plot_colour_correction_stackedarea(experiments)
 # plot_colour_correction_lossvsvalloss(experiments)
-# plot_size_overlap_scatter(experiments)
+plot_size_overlap_scatter(experiments)
