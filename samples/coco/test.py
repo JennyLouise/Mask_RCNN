@@ -94,7 +94,7 @@ def compute_classless_batch_ap(image_ids, dataset, model, config):
     size_APs = {}
     size_overlaps = {}
     overlaps_list = []
-    for iteration in range(15):
+    for iteration in range(1):
         images=load_images(image_ids, dataset, config)
         logging.debug("running detection for iteration "+str(iteration))
         for n, image in enumerate(images):
@@ -137,14 +137,10 @@ def compute_classless_batch_ap(image_ids, dataset, model, config):
 
 def compute_both_batch_aps(image_ids, dataset, model, config):
     APs = []
-    class_APs = {}
-    size_APs = {}
-    class_overlaps = {}
-    size_overlaps = {}
+    class_list = []
+    size_list = []
     overlaps_list = []
     classless_APs = []
-    classless_size_APs = {}
-    classless_size_overlaps = {}
     classless_overlaps_list = []
     total_predicted_pixels = 0
     total_groundtruth_pixels = 0
@@ -152,7 +148,7 @@ def compute_both_batch_aps(image_ids, dataset, model, config):
 
 
 
-    for iteration in range(15):
+    for iteration in range(1):
         images=load_images(image_ids, dataset, config)
         logging.debug("running detection for iteration "+str(iteration))
         for n, image in enumerate(images):
@@ -200,30 +196,16 @@ def compute_both_batch_aps(image_ids, dataset, model, config):
                         np.array([singleton_masks]),
                     )
 
-                    if r["class_ids"][i] in class_APs.keys():
-                        class_APs[r["class_ids"][i]].append(AP)
-                        class_overlaps[r["class_ids"][i]].append(overlaps)
-                    else:
-                        class_APs[r["class_ids"][i]] = [AP]
-                        class_overlaps[r["class_ids"][i]] = [overlaps]
-
-                    if mask_size in size_APs.keys():
-                        size_APs[mask_size].append(AP)
-                        classless_size_APs[mask_size].append(classless_AP)
-                        size_overlaps[mask_size].append(overlaps)
-                        classless_size_overlaps[mask_size].append(classless_overlaps)
-                    else:
-                        size_APs[mask_size] = [AP]
-                        classless_size_APs[mask_size] = [classless_AP]
-                        size_overlaps[mask_size] = [overlaps]
-                        classless_size_overlaps[mask_size] = [classless_overlaps]
                     APs.append(AP)
+                    class_list.append(r["class_ids"][i])
+                    size_list.append(mask_size)
+                    overlaps_list.append(np.max(overlaps))
                     classless_APs.append(classless_AP)
-                    overlaps_list.append(overlaps)
-                    classless_overlaps_list.append(classless_overlaps)
-    logging.debug("finished all 5 iterations for these images")
-    return class_APs, size_APs, APs, class_overlaps, size_overlaps, overlaps_list, classless_APs, classless_size_APs, classless_size_overlaps, classless_overlaps_list, total_predicted_pixels, total_groundtruth_pixels, total_overlapping_pixels
+                    classless_overlaps_list.append(np.max(classless_overlaps))
 
+
+    logging.debug("finished all 5 iterations for these images")
+    return APs, class_list, size_list, overlaps_list, classless_APs, classless_overlaps_list, total_predicted_pixels, total_groundtruth_pixels, total_overlapping_pixels
 
 
 
@@ -321,16 +303,10 @@ def get_stats(weights_filepath, dataset):
     logging.debug("Loading weights ", weights_filepath)
     model.load_weights(weights_filepath, by_name=True)
     image_ids = dataset.image_ids
-    class_APs,  size_APs, APs, class_overlaps, size_overlaps, overlaps_list, classless_APs, classless_size_APs, classless_size_overlaps, classless_overlaps_list, total_predicted_pixels, total_groundtruth_pixels, total_overlapping_pixels = compute_both_batch_aps(image_ids, dataset, model, config)
-    l1 = []
-    for item in overlaps_list:
-        l1.append(np.max(item))
-    l2 = []
-    for item in classless_overlaps:
-        l2.append(np.max(item))
-    print(l1)
-    print(l2)
-    return class_APs,  size_APs, APs, class_overlaps, size_overlaps, overlaps_list, classless_APs, classless_size_APs, classless_size_overlaps, classless_overlaps_list, total_predicted_pixels, total_groundtruth_pixels, total_overlapping_pixels
+    APs, class_list, size_list, overlaps_list, classless_APs, classless_overlaps_list, total_predicted_pixels, total_groundtruth_pixels, total_overlapping_pixels = compute_both_batch_aps(image_ids, dataset, model, config)
+
+    return APs, class_list, size_list, overlaps_list, classless_APs, classless_overlaps_list, total_predicted_pixels, total_groundtruth_pixels, total_overlapping_pixels
+
 
 
 def plot_class_boxplots():
@@ -413,15 +389,11 @@ def add_single_experiment(directory, df_filepath, datasets):
                 # try:
                 logging.debug("getting stats")
                 logging.debug("tunasand stats")
-                experiment["class_APs"], \
-                experiment["size_APs"], \
                 experiment["APs"], \
-                experiment["class_overlaps"], \
-                experiment["size_overlaps"], \
+                experiment["class_list"], \
+                experiment["size_list"], \
                 experiment["overlaps"], \
                 experiment["classless_APs"], \
-                experiment["classless_size_APs"], \
-                experiment["classless_size_overlaps"], \
                 experiment["classless_overlaps_list"], \
                 experiment["total_predicted_pixels"], \
                 experiment["total_groundtruth_pixels"], \
@@ -429,50 +401,38 @@ def add_single_experiment(directory, df_filepath, datasets):
 
 
                 logging.debug("aestats, dive1")
-                experiment['ae_class_APs_dive1'], \
-                experiment['ae_size_APs_dive1'], \
                 experiment['ae_APs_dive1'], \
-                experiment['ae_class_overlaps_dive1'], \
-                experiment['ae_size_overlaps_dive1'], \
+                experiment['ae_class_list_dive1'], \
+                experiment['ae_size_list_dive1'], \
                 experiment['ae_overlaps_dive1'], \
-                experiment["classless_APs"], \
-                experiment["classless_size_APs"], \
-                experiment["classless_size_overlaps"], \
-                experiment["classless_overlaps_list"], \
-                experiment["total_predicted_pixels"], \
-                experiment["total_groundtruth_pixels"], \
-                experiment["total_overlapping_pixels"]  = get_stats(weights_file, datasets[1])
+                experiment["ae_classless_APs_dive1"], \
+                experiment["ae_classless_overlaps_list_dive1"], \
+                experiment["ae_total_predicted_pixels_dive1"], \
+                experiment["ae_total_groundtruth_pixels_dive1"], \
+                experiment["ae_total_overlapping_pixels_dive1"]  = get_stats(weights_file, datasets[1])
 
 
                 logging.debug("aestats, dive2")
-                experiment['ae_class_APs_dive2'], \
-                experiment['ae_size_APs_dive2'], \
                 experiment['ae_APs_dive2'], \
-                experiment['ae_class_overlaps_dive2'], \
-                experiment['ae_size_overlaps_dive2'], \
+                experiment['ae_class_list_dive2'], \
+                experiment['ae_size_list_dive2'], \
                 experiment['ae_overlaps_dive2'], \
-                experiment["classless_APs"], \
-                experiment["classless_size_APs"], \
-                experiment["classless_size_overlaps"], \
-                experiment["classless_overlaps_list"], \
-                experiment["total_predicted_pixels"], \
-                experiment["total_groundtruth_pixels"], \
-                experiment["total_overlapping_pixels"]  = get_stats(weights_file, datasets[2])
+                experiment["ae_classless_APs_dive2"], \
+                experiment["ae_classless_overlaps_list_dive2"], \
+                experiment["ae_total_predicted_pixels_dive2"], \
+                experiment["ae_total_groundtruth_pixels_dive2"], \
+                experiment["ae_total_overlapping_pixels_dive2"]  = get_stats(weights_file, datasets[2])
 
                 logging.debug("aestats, dive3")
-                experiment['ae_class_APs_dive3'], \
-                experiment['ae_size_APs_dive3'], \
                 experiment['ae_APs_dive3'], \
-                experiment['ae_class_overlaps_dive3'], \
-                experiment['ae_size_overlaps_dive3'], \
+                experiment['ae_class_list_dive3'], \
+                experiment['ae_size_list_dive3'], \
                 experiment['ae_overlaps_dive3'], \
-                experiment["classless_APs"], \
-                experiment["classless_size_APs"], \
-                experiment["classless_size_overlaps"], \
-                experiment["classless_overlaps_list"], \
-                experiment["total_predicted_pixels"], \
-                experiment["total_groundtruth_pixels"], \
-                experiment["total_overlapping_pixels"]  = get_stats(weights_file, datasets[3])
+                experiment["ae_classless_APs_dive3"], \
+                experiment["ae_classless_overlaps_list_dive3"], \
+                experiment["ae_total_predicted_pixels_dive3"], \
+                experiment["ae_total_groundtruth_pixels_dive3"], \
+                experiment["ae_total_overlapping_pixels_dive3"]   = get_stats(weights_file, datasets[3])
 
                 # except:
                 #     print("issue getting loss values")
