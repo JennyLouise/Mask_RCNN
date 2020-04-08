@@ -28,8 +28,8 @@ global ae_dive3_dataset
 
 
 def get_dataset_filepath(experiment):
-    filepath = "/Volumes/jw22g14_phd/fk2018/tunasand/20180805_215810_ts_un6k/processed/image/i20180805_215810/for_iridis/"
-    # filepath = "/scratch/jw22g14/FK2018/tunasand/20180805_215810_ts_un6k/images/processed/image/i20180805_215810/"
+    #filepath = "/Volumes/jw22g14_phd/fk2018/tunasand/20180805_215810_ts_un6k/processed/image/i20180805_215810/for_iridis/"
+    filepath = "/scratch/jw22g14/FK2018/tunasand/20180805_215810_ts_un6k/images/processed/image/i20180805_215810/"
     if experiment["colour_correction_type"] == "histogram_normalised":
         filepath += "histogram_normalised/"
     elif experiment["colour_correction_type"] == "greyworld_corrected":
@@ -52,7 +52,8 @@ def get_dataset_filepath(experiment):
 
 
 def get_ae2000_dataset_filepaths(experiment):
-    filepath = "/Volumes/jw22g14_phd/fk2018/ae2000/ae2000_overlap/coco/"
+    #filepath = "/Volumes/jw22g14_phd/fk2018/ae2000/ae2000_overlap/coco/"
+    filepath = "/scratch/jw22g14/FK2018/ae2000/ae2000_overlap/coco/"
     if experiment["colour_correction_type"] == "histogram_normalised":
         filepath += "histogram"
     elif experiment["colour_correction_type"] == "greyworld_corrected":

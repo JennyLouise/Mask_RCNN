@@ -7,6 +7,7 @@ temp/
 test/
 *.csv
 *.png
+*.out
 *.log
 
 # Byte-compiled / optimized / DLL files
