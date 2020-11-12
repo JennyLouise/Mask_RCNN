@@ -15,54 +15,50 @@ from matplotlib.patches import Patch
 
 def get_experiments():
     experiments = []
-    directories = [x for x in os.walk("../../../")][0][1]
-    for directory in directories:
-        colour_correction_type = directory.split("_")[0]
+    log_files = [f for f in os.listdir('./logs/csv_files') if f[-4:] == ".csv"]
+    for log_file in log_files:
+        colour_correction_type = directory.split("-")[0]
 
-        if directory.split("_")[1] == "dist":
+        if directory.split("-")[1] == "d":
             distortion_correction = True
         else:
             distortion_correction = False
 
-        if directory.split("_")[2] == "rescaled":
-            rescaled = True
-        else:
-            rescaled = False
+        rescaled = directory.split("-")[2]
 
         filenames = [f for f in os.listdir(directory) if f[-4:] == ".csv"]
         print(filenames)
 
-        for filename in filenames:
-            experiment = {
-                "colour_correction_type": colour_correction_type,
-                "distortion_correction": distortion_correction,
-                "rescaled": rescaled,
-            }
-            with open("./" + directory + "/" + filename, "r") as csvfile:
-                plots = csv.reader(csvfile, delimiter=",")
-                headers = next(plots, None)
-                for header in headers:
-                    experiment[header] = []
-                for row in plots:
-                    for i, header in enumerate(headers):
-                        experiment[header].append(float(row[i]))
+        experiment = {
+            "colour_correction_type": colour_correction_type,
+            "distortion_correction": distortion_correction,
+            "rescaled": rescaled,
+        }
+        with open("./" + directory + "/" + filename, "r") as csvfile:
+            plots = csv.reader(csvfile, delimiter=",")
+            headers = next(plots, None)
+            for header in headers:
+                experiment[header] = []
+            for row in plots:
+                for i, header in enumerate(headers):
+                    experiment[header].append(float(row[i]))
 
-            experiment["minimum_val_loss"] = min(experiment["val_loss"])
-            experiment["minimum_loss"] = min(experiment["loss"])
-            number = int(filename.split("_")[1].split(".")[0])
-            experiment["number"] = number
-            experiment["repeat"] = math.floor(number / 4)
-            if (number % 4) / 2 < 1:
-                experiment["elastic_distortions"] = True
-            else:
-                experiment["elastic_distortions"] = False
-            if (number % 4) % 2 != 0:
-                experiment["separate_channel_ops"] = True
-            else:
-                experiment["separate_channel_ops"] = False
+        experiment["minimum_val_loss"] = min(experiment["val_loss"])
+        experiment["minimum_loss"] = min(experiment["loss"])
+        number = int(filename.split("_")[1].split(".")[0])
+        experiment["number"] = number
+        experiment["repeat"] = math.floor(number / 4)
+        if (number % 4) / 2 < 1:
+            experiment["elastic_distortions"] = True
+        else:
+            experiment["elastic_distortions"] = False
+        if (number % 4) % 2 != 0:
+            experiment["separate_channel_ops"] = True
+        else:
+            experiment["separate_channel_ops"] = False
 
-            print(experiment)
-            experiments.append(experiment)
+        print(experiment)
+        experiments.append(experiment)
 
     return experiments
 
@@ -141,9 +137,9 @@ def plot_boxplots(experiments):
         ].split(", ")
         experiment["val_loss"] = experiment["val_loss"][1:-1].split(", ")
         experiment["overlaps"] = overlaps(experiment["overlaps"])
-        experiment["ae_overlaps_dive1"] = overlaps(experiment["ae_overlaps_dive1"])
-        experiment["ae_overlaps_dive2"] = overlaps(experiment["ae_overlaps_dive2"])
-        experiment["ae_overlaps_dive3"] = overlaps(experiment["ae_overlaps_dive3"])
+        # experiment["ae_overlaps_dive1"] = overlaps(experiment["ae_overlaps_dive1"])
+        # experiment["ae_overlaps_dive2"] = overlaps(experiment["ae_overlaps_dive2"])
+        # experiment["ae_overlaps_dive3"] = overlaps(experiment["ae_overlaps_dive3"])
         experiment["size_overlaps"] = size_overlaps(experiment["size_overlaps"])
         print(len(experiment["val_mrcnn_class_loss"]))
         print(len(experiment["val_loss"]))
@@ -163,54 +159,54 @@ def plot_boxplots(experiments):
             "dataset": "tunasand",
         }
         new_experiments.append(new_row)
-        new_row = {
-            "rescaled": experiment["rescaled"],
-            "distortion_correction": experiment["distortion_correction"],
-            "minimum_loss": experiment["minimum_loss"],
-            "number": experiment["number"],
-            "minimum_val_loss": experiment["minimum_val_loss"],
-            "elastic_distortions": experiment["elastic_distortions"],
-            "colour_correction_type": experiment["colour_correction_type"],
-            "separate_channel_ops": experiment["separate_channel_ops"],
-            "combo": experiment["colour_correction_type"]
-            + str(experiment["distortion_correction"])
-            + str(experiment["rescaled"]),
-            "overlaps": experiment["ae_overlaps_dive1"],
-            "dataset": "ae_dive1",
-        }
-        new_experiments.append(new_row)
-        new_row = {
-            "rescaled": experiment["rescaled"],
-            "distortion_correction": experiment["distortion_correction"],
-            "minimum_loss": experiment["minimum_loss"],
-            "number": experiment["number"],
-            "minimum_val_loss": experiment["minimum_val_loss"],
-            "elastic_distortions": experiment["elastic_distortions"],
-            "colour_correction_type": experiment["colour_correction_type"],
-            "separate_channel_ops": experiment["separate_channel_ops"],
-            "combo": experiment["colour_correction_type"]
-            + str(experiment["distortion_correction"])
-            + str(experiment["rescaled"]),
-            "overlaps": experiment["ae_overlaps_dive2"],
-            "dataset": "ae_dive2",
-        }
-        new_experiments.append(new_row)
-        new_row = {
-            "rescaled": experiment["rescaled"],
-            "distortion_correction": experiment["distortion_correction"],
-            "minimum_loss": experiment["minimum_loss"],
-            "number": experiment["number"],
-            "minimum_val_loss": experiment["minimum_val_loss"],
-            "elastic_distortions": experiment["elastic_distortions"],
-            "colour_correction_type": experiment["colour_correction_type"],
-            "separate_channel_ops": experiment["separate_channel_ops"],
-            "combo": experiment["colour_correction_type"]
-            + str(experiment["distortion_correction"])
-            + str(experiment["rescaled"]),
-            "overlaps": experiment["ae_overlaps_dive3"],
-            "dataset": "ae_dive3",
-        }
-        new_experiments.append(new_row)
+        # new_row = {
+        #     "rescaled": experiment["rescaled"],
+        #     "distortion_correction": experiment["distortion_correction"],
+        #     "minimum_loss": experiment["minimum_loss"],
+        #     "number": experiment["number"],
+        #     "minimum_val_loss": experiment["minimum_val_loss"],
+        #     "elastic_distortions": experiment["elastic_distortions"],
+        #     "colour_correction_type": experiment["colour_correction_type"],
+        #     "separate_channel_ops": experiment["separate_channel_ops"],
+        #     "combo": experiment["colour_correction_type"]
+        #     + str(experiment["distortion_correction"])
+        #     + str(experiment["rescaled"]),
+        #     "overlaps": experiment["ae_overlaps_dive1"],
+        #     "dataset": "ae_dive1",
+        # }
+        # new_experiments.append(new_row)
+        # new_row = {
+        #     "rescaled": experiment["rescaled"],
+        #     "distortion_correction": experiment["distortion_correction"],
+        #     "minimum_loss": experiment["minimum_loss"],
+        #     "number": experiment["number"],
+        #     "minimum_val_loss": experiment["minimum_val_loss"],
+        #     "elastic_distortions": experiment["elastic_distortions"],
+        #     "colour_correction_type": experiment["colour_correction_type"],
+        #     "separate_channel_ops": experiment["separate_channel_ops"],
+        #     "combo": experiment["colour_correction_type"]
+        #     + str(experiment["distortion_correction"])
+        #     + str(experiment["rescaled"]),
+        #     "overlaps": experiment["ae_overlaps_dive2"],
+        #     "dataset": "ae_dive2",
+        # }
+        # new_experiments.append(new_row)
+        # new_row = {
+        #     "rescaled": experiment["rescaled"],
+        #     "distortion_correction": experiment["distortion_correction"],
+        #     "minimum_loss": experiment["minimum_loss"],
+        #     "number": experiment["number"],
+        #     "minimum_val_loss": experiment["minimum_val_loss"],
+        #     "elastic_distortions": experiment["elastic_distortions"],
+        #     "colour_correction_type": experiment["colour_correction_type"],
+        #     "separate_channel_ops": experiment["separate_channel_ops"],
+        #     "combo": experiment["colour_correction_type"]
+        #     + str(experiment["distortion_correction"])
+        #     + str(experiment["rescaled"]),
+        #     "overlaps": experiment["ae_overlaps_dive3"],
+        #     "dataset": "ae_dive3",
+        # }
+        # new_experiments.append(new_row)
 
     experiments_dataframe = pd.DataFrame(new_experiments)
     print(experiments_dataframe)
@@ -420,14 +416,14 @@ def plot_size_overlap_scatter(experiments):
         ]:
             experiment[value] = stringlist_to_list(experiment[value])
         experiment["overlaps"] = overlaps(experiment["overlaps"])
-        experiment["ae_overlaps_dive1"] = overlaps(experiment["ae_overlaps_dive1"])
-        experiment["ae_overlaps_dive2"] = overlaps(experiment["ae_overlaps_dive2"])
-        experiment["ae_overlaps_dive3"] = overlaps(experiment["ae_overlaps_dive3"])
+        # experiment["ae_overlaps_dive1"] = overlaps(experiment["ae_overlaps_dive1"])
+        # experiment["ae_overlaps_dive2"] = overlaps(experiment["ae_overlaps_dive2"])
+        # experiment["ae_overlaps_dive3"] = overlaps(experiment["ae_overlaps_dive3"])
         experiment["size_list"], experiment["overlaps_list"], experiment["class_list"] = size_class_overlaps(experiment["size_overlaps"], experiment["class_overlaps"])
-        experiment["ae_size_list_dive1"], experiment["ae_overlaps_list_dive1"], experiment["ae_class_list_dive1"] = size_class_overlaps(experiment["ae_size_overlaps_dive1"], experiment["ae_class_overlaps_dive1"])
-        experiment["ae_size_list_dive2"], experiment["ae_overlaps_list_dive2"], experiment["ae_class_list_dive2"] = size_class_overlaps(experiment["ae_size_overlaps_dive2"], experiment["ae_class_overlaps_dive2"])
-        experiment["ae_size_list_dive3"], experiment["ae_overlaps_list_dive3"], experiment["ae_class_list_dive3"] = size_class_overlaps(experiment["ae_size_overlaps_dive3"], experiment["ae_class_overlaps_dive3"])
-        new_experiments.append(experiment)
+        # experiment["ae_size_list_dive1"], experiment["ae_overlaps_list_dive1"], experiment["ae_class_list_dive1"] = size_class_overlaps(experiment["ae_size_overlaps_dive1"], experiment["ae_class_overlaps_dive1"])
+        # experiment["ae_size_list_dive2"], experiment["ae_overlaps_list_dive2"], experiment["ae_class_list_dive2"] = size_class_overlaps(experiment["ae_size_overlaps_dive2"], experiment["ae_class_overlaps_dive2"])
+        # experiment["ae_size_list_dive3"], experiment["ae_overlaps_list_dive3"], experiment["ae_class_list_dive3"] = size_class_overlaps(experiment["ae_size_overlaps_dive3"], experiment["ae_class_overlaps_dive3"])
+        # new_experiments.append(experiment)
 
     experiments_dataframe = pd.DataFrame(new_experiments)
     experiments_dataframe = group_experiments_by(experiments_dataframe, "rescaled")
@@ -553,9 +549,9 @@ def plot_colour_correction_stackedarea(experiments):
         plt.clf()
 
 
-experiments = pd.read_csv("./dataframe_0.csv")
+experiments = pd.read_csv("./experiments_dataframe.csv")
 print(experiments)
-# plot_boxplots(experiments)
-# plot_colour_correction_stackedarea(experiments)
-# plot_colour_correction_lossvsvalloss(experiments)
+plot_boxplots(experiments)
+plot_colour_correction_stackedarea(experiments)
+plot_colour_correction_lossvsvalloss(experiments)
 plot_size_overlap_scatter(experiments)

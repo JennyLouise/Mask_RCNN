@@ -27,15 +27,16 @@ global ae_dive3_dataset
 
 
 
+
 def get_dataset_filepath(experiment):
-    #filepath = "/Volumes/jw22g14_phd/fk2018/tunasand/20180805_215810_ts_un6k/processed/image/i20180805_215810/for_iridis/"
-    filepath = "/scratch/jw22g14/FK2018/tunasand/20180805_215810_ts_un6k/images/processed/image/i20180805_215810/"
+    filepath = "/home/jenny/Documents/FK2018/tunasand/05_dive/"
+    # filepath = "/scratch/jw22g14/FK2018/tunasand/20180805_215810_ts_un6k/images/processed/image/i20180805_215810/"
     if experiment["colour_correction_type"] == "histogram_normalised":
         filepath += "histogram_normalised/"
-    elif experiment["colour_correction_type"] == "greyworld_corrected":
+    elif experiment["colour_correction_type"] == "greyworld":
         filepath += "greyworld_correction/"
-    elif experiment["colour_correction_type"] == "attenuation_correction":
-        filepath += "attenuation_correction/"
+    elif experiment["colour_correction_type"] == "alt":
+        filepath += "altitude_corrected/"
     else:
         print(experiment["colour_correction_type"])
         exit()
@@ -43,7 +44,9 @@ def get_dataset_filepath(experiment):
     if experiment["distortion_correction"]:
         filepath += "distortion_correction/"
     else:
-        filepath += "no_distortion_correction/"
+        filepath += "no_distortion/"
+
+    rescaling_dict={"res_nn":"rescaled_nn"}
 
     filepath += experiment['rescaled'] + "/"
 
@@ -52,14 +55,13 @@ def get_dataset_filepath(experiment):
 
 
 def get_ae2000_dataset_filepaths(experiment):
-    #filepath = "/Volumes/jw22g14_phd/fk2018/ae2000/ae2000_overlap/coco/"
-    filepath = "/scratch/jw22g14/FK2018/ae2000/ae2000_overlap/coco/"
+    filepath = "/Volumes/jw22g14_phd/fk2018/ae2000/ae2000_overlap/coco/"
     if experiment["colour_correction_type"] == "histogram_normalised":
         filepath += "histogram"
-    elif experiment["colour_correction_type"] == "greyworld_corrected":
+    elif experiment["colour_correction_type"] == "greyworld":
         filepath += "greyworld"
-    elif experiment["colour_correction_type"] == "attenuation_correction":
-        filepath += "attn"
+    elif experiment["colour_correction_type"] == "alt":
+        filepath += "alt"
     else:
         print(experiment["colour_correction_type"])
         exit()
@@ -148,8 +150,8 @@ def compute_both_batch_aps(image_ids, dataset, model, config):
     total_overlapping_pixels = 0
 
 
-
-    for iteration in range(1):
+    iterations=15
+    for iteration in range(iterations):
         images=load_images(image_ids, dataset, config)
         logging.debug("running detection for iteration "+str(iteration))
         for n, image in enumerate(images):
@@ -205,7 +207,7 @@ def compute_both_batch_aps(image_ids, dataset, model, config):
                     classless_overlaps_list.append(np.max(classless_overlaps))
 
 
-    logging.debug("finished all 5 iterations for these images")
+    logging.debug(f"finished all {iterations} iterations for these images")
     return APs, class_list, size_list, overlaps_list, classless_APs, classless_overlaps_list, total_predicted_pixels, total_groundtruth_pixels, total_overlapping_pixels
 
 
@@ -348,6 +350,8 @@ def directory_to_experiment_info(directory):
     else:
         experiment["separate_channel_ops"] = False
 
+    print("got experiment info from directory")
+    print(experiment)
     return experiment
 
 def add_single_experiment(directory, df_filepath, datasets):
@@ -369,7 +373,7 @@ def add_single_experiment(directory, df_filepath, datasets):
 
         experiment["minimum_val_loss"] = min(experiment["val_loss"])
         experiment["minimum_loss"] = min(experiment["loss"])
-        number = int(filename.split("_")[1].split(".")[0])
+        number = int(filename.split("-")[-1].split(".")[0])
         experiment["number"] = number
         experiment["repeat"] = math.floor(number / 4)
         if (number % 4) / 2 < 1:
@@ -401,39 +405,39 @@ def add_single_experiment(directory, df_filepath, datasets):
                 experiment["total_overlapping_pixels"] = get_stats(weights_file, datasets[0])
 
 
-                logging.debug("aestats, dive1")
-                experiment['ae_APs_dive1'], \
-                experiment['ae_class_list_dive1'], \
-                experiment['ae_size_list_dive1'], \
-                experiment['ae_overlaps_dive1'], \
-                experiment["ae_classless_APs_dive1"], \
-                experiment["ae_classless_overlaps_list_dive1"], \
-                experiment["ae_total_predicted_pixels_dive1"], \
-                experiment["ae_total_groundtruth_pixels_dive1"], \
-                experiment["ae_total_overlapping_pixels_dive1"]  = get_stats(weights_file, datasets[1])
+                # logging.debug("aestats, dive1")
+                # experiment['ae_APs_dive1'], \
+                # experiment['ae_class_list_dive1'], \
+                # experiment['ae_size_list_dive1'], \
+                # experiment['ae_overlaps_dive1'], \
+                # experiment["ae_classless_APs_dive1"], \
+                # experiment["ae_classless_overlaps_list_dive1"], \
+                # experiment["ae_total_predicted_pixels_dive1"], \
+                # experiment["ae_total_groundtruth_pixels_dive1"], \
+                # experiment["ae_total_overlapping_pixels_dive1"]  = get_stats(weights_file, datasets[1])
 
 
-                logging.debug("aestats, dive2")
-                experiment['ae_APs_dive2'], \
-                experiment['ae_class_list_dive2'], \
-                experiment['ae_size_list_dive2'], \
-                experiment['ae_overlaps_dive2'], \
-                experiment["ae_classless_APs_dive2"], \
-                experiment["ae_classless_overlaps_list_dive2"], \
-                experiment["ae_total_predicted_pixels_dive2"], \
-                experiment["ae_total_groundtruth_pixels_dive2"], \
-                experiment["ae_total_overlapping_pixels_dive2"]  = get_stats(weights_file, datasets[2])
+                # logging.debug("aestats, dive2")
+                # experiment['ae_APs_dive2'], \
+                # experiment['ae_class_list_dive2'], \
+                # experiment['ae_size_list_dive2'], \
+                # experiment['ae_overlaps_dive2'], \
+                # experiment["ae_classless_APs_dive2"], \
+                # experiment["ae_classless_overlaps_list_dive2"], \
+                # experiment["ae_total_predicted_pixels_dive2"], \
+                # experiment["ae_total_groundtruth_pixels_dive2"], \
+                # experiment["ae_total_overlapping_pixels_dive2"]  = get_stats(weights_file, datasets[2])
 
-                logging.debug("aestats, dive3")
-                experiment['ae_APs_dive3'], \
-                experiment['ae_class_list_dive3'], \
-                experiment['ae_size_list_dive3'], \
-                experiment['ae_overlaps_dive3'], \
-                experiment["ae_classless_APs_dive3"], \
-                experiment["ae_classless_overlaps_list_dive3"], \
-                experiment["ae_total_predicted_pixels_dive3"], \
-                experiment["ae_total_groundtruth_pixels_dive3"], \
-                experiment["ae_total_overlapping_pixels_dive3"]   = get_stats(weights_file, datasets[3])
+                # logging.debug("aestats, dive3")
+                # experiment['ae_APs_dive3'], \
+                # experiment['ae_class_list_dive3'], \
+                # experiment['ae_size_list_dive3'], \
+                # experiment['ae_overlaps_dive3'], \
+                # experiment["ae_classless_APs_dive3"], \
+                # experiment["ae_classless_overlaps_list_dive3"], \
+                # experiment["ae_total_predicted_pixels_dive3"], \
+                # experiment["ae_total_groundtruth_pixels_dive3"], \
+                # experiment["ae_total_overlapping_pixels_dive3"]   = get_stats(weights_file, datasets[3])
 
                 # except:
                 #     print("issue getting loss values")
@@ -448,20 +452,20 @@ def add_single_experiment(directory, df_filepath, datasets):
 
 def populate_experiments_dataframe(number):
     print("LOADED IMPORTS - NOW RUNNING CODE")
-    df_filepath = './classless_dataframe_'+str(number)+'.csv'
+    df_filepath = './experiments_dataframe_'+str(number)+'.csv'
     logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',filename='log'+str(number)+'.log',level=logging.DEBUG)
     experiments = []
     dataset=array_num_to_dataset(number)
-    files = [x for x in os.walk("../../../paper_experiments/weights/")][0][1]
-    files = [x for x in files if x.split("-")[0:3] == dataset]
-    directories = ["../../../paper_experiments/weights/" + f for f in files]
-    experiment=directory_to_experiment_info(directories[0])
-    dataset_filepath = get_dataset_filepath(experiment)
-    ae_dataset_filepath_dive1, ae_dataset_filepath_dive2, ae_dataset_filepath_dive3 = get_ae2000_dataset_filepaths(experiment)
-    datasets=[load_dataset(dataset_filepath), load_dataset(ae_dataset_filepath_dive1), load_dataset(ae_dataset_filepath_dive2), load_dataset(ae_dataset_filepath_dive3)]
+    files = [x for x in os.walk("./logs/")][0][1]
+    directories = ["./logs/" + f for f in files]
+    
     print(directories)
     for directory in directories:
-         add_single_experiment(directory, df_filepath, datasets)
+        experiment=directory_to_experiment_info(directories[0])
+        dataset_filepath = get_dataset_filepath(experiment)
+        ae_dataset_filepath_dive1, ae_dataset_filepath_dive2, ae_dataset_filepath_dive3 = get_ae2000_dataset_filepaths(experiment)
+        datasets=[load_dataset(dataset_filepath), None, None, None]#load_dataset(ae_dataset_filepath_dive1), load_dataset(ae_dataset_filepath_dive2), load_dataset(ae_dataset_filepath_dive3)]
+        add_single_experiment(directory, df_filepath, datasets)
     return
 
 def max_overlaps(experiments):
@@ -470,6 +474,8 @@ def max_overlaps(experiments):
          print(experiment['overlaps'])
 
 def experiment_in_dataframe(df_filepath, experiment):
+    if not os.path.exists(df_filepath):
+        return False
     df = pd.read_csv(df_filepath)
     print(df)
     pre_existing_experiment = df.loc[
@@ -483,7 +489,10 @@ def experiment_in_dataframe(df_filepath, experiment):
 
 
 def update_dataframe(df_filepath, experiment):
-    df = pd.read_csv(df_filepath, index_col=0)
+    if not os.path.exists(df_filepath):
+        df = pd.DataFrame(columns=experiment.keys())
+    else:
+        df = pd.read_csv(df_filepath, index_col=0)
     df = df.append(experiment, ignore_index=True)
     logging.debug("saving experiment to "+df_filepath)
     df.to_csv(df_filepath)
