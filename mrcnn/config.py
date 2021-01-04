@@ -140,6 +140,7 @@ class Config(object):
 
     # Image mean (RGB)
     MEAN_PIXEL = np.array([123.7, 116.8, 103.9])
+    STD_PIXEL = np.array([1,1,1])
 
     # Number of ROIs per image to feed to classifier/mask heads
     # The Mask RCNN paper uses 512 but often the RPN doesn't generate

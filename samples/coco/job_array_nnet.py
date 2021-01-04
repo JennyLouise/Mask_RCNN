@@ -2,7 +2,7 @@ import argparse
 import FK2018
 
 
-def job_array(array_id, data_path):
+def job_array(array_id, data_path, log_dir):
     elastic_transformations = False
     separate_channel_operations = 0
 
@@ -25,7 +25,7 @@ def job_array(array_id, data_path):
         dataset=data_path,
         elastic_transformations=elastic_transformations,
         separate_channel_operations=separate_channel_operations,
-        log_file=str(array_id),
+        log_file=log_dir,
     )
 
 
@@ -33,5 +33,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Pass job array id")
     parser.add_argument("array_id", type=int, help="job array id")
     parser.add_argument("data_path", type=str, help="dataset directory")
+    parser.add_argument("log_dir", type=str, help="log and weights output directory")
     args = parser.parse_args()
-    job_array(args.array_id, args.data_path)
+    job_array(args.array_id, args.data_path, args.log_dir)

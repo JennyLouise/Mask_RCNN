@@ -3,7 +3,9 @@ import os
 import csv
 import math
 import tensorflow as tf
+print("LOOOK HERE, THE CODE GOT TO HERE, WOOOOOHOOOOOOOOOOO - imported tensorflow")
 import FK2018
+print("WAHOOOOO - imported FK2018")
 import mrcnn.model as modellib
 import pandas as pd
 from mrcnn import utils
@@ -18,13 +20,13 @@ print("imported keras")
 
 
 def get_dataset_filepath(experiment):
-    filepath = "/home/jenny/Documents/FK2018/tunasand/05_dive/"
+    filepath = "/scratch/jw22g14/FK2018/tunasand/20180805_215810_ts_un6k/images/processed/image/i20180805_215810/"
     if experiment["colour_correction_type"] == "histogram_normalised":
         filepath += "histogram_normalised/"
-    elif experiment["colour_correction_type"] == "grey":
-        filepath += "greyworld/"
-    elif experiment["colour_correction_type"] == "alt":
-        filepath += "altitude_corrected/"
+    elif experiment["colour_correction_type"] == "greyworld_corrected":
+        filepath += "greyworld_correction/"
+    elif experiment["colour_correction_type"] == "attenuation_correction":
+        filepath += "attenuation_correction/"
     else:
         print(experiment["colour_correction_type"])
         exit()
@@ -32,10 +34,9 @@ def get_dataset_filepath(experiment):
     if experiment["distortion_correction"]:
         filepath += "distortion_correction/"
     else:
-        filepath += "no_distortion/"
+        filepath += "no_distortion_correction/"
 
-    rescaling_dict={'not_rescaled':'not_rescaled','res_nn':'rescaled_nn', 'drop_res':'dropped_resolution', 'rescaled':'rescaled', 'drop_res_up':'dropped_resolution_scaledup', 'drop_res_up_nn':'dropped_resolution_scaledup_nn', 'drop_res_nn':'dropped_resolution_nn'}
-    filepath += rescaling_dict[experiment['rescaled']] + "/"
+    filepath += experiment['rescaled'] + "/"
 
     filepath += "val"
     return filepath
@@ -45,9 +46,9 @@ def get_ae2000_dataset_filepaths(experiment):
     filepath = "/scratch/jw22g14/FK2018/ae2000/ae2000_overlap/coco/"
     if experiment["colour_correction_type"] == "histogram_normalised":
         filepath += "histogram"
-    elif experiment["colour_correction_type"] == "grey":
+    elif experiment["colour_correction_type"] == "greyworld_corrected":
         filepath += "greyworld"
-    elif experiment["colour_correction_type"] == "alt":
+    elif experiment["colour_correction_type"] == "attenuation_correction":
         filepath += "attn"
     else:
         print(experiment["colour_correction_type"])
@@ -74,13 +75,13 @@ def compute_batch_ap(image_ids, model, dataset, config):
     class_overlaps = {}
     size_overlaps = {}
     overlaps_list = []
-    for iteration in range(5):
+    for iteration in range(15):
         for image_id in image_ids:
             # Load image
             image, image_meta, gt_class_id, gt_bbox, gt_mask = modellib.load_image_gt(
                 dataset, config, image_id, use_mini_mask=False
             )
-            gt_class_ids_set_to_zero=np.zeros(gt_class_id.shape).astype(str)
+            gt_classids_set_to_zero=np.zeros(gt_class_id.shape).astype(str)
             if len(gt_class_id) > 0:
                 # Run object detection
                 results = model.detect([image], verbose=0)
@@ -199,24 +200,20 @@ def directory_to_experiment_info(directory):
     else:
         experiment["separate_channel_ops"] = False
 
-    print("got experiment info from directory")
-    print(experiment)
     return experiment
 
 
 def populate_experiments_dataframe():
     print("LOADED IMPORTS - NOW RUNNING CODE")
     experiments = []
-    files = [x for x in os.walk("./logs/")][0][1]
+    files = [x for x in os.walk("../../../paper_experiments/weights/")][0][1]
     print(files)
-    directories = ["./logs/" + f for f in files]
+    directories = ["../../../paper_experiments/weights/" + f for f in files]
     for directory in directories:
         csv_filenames = [
             f for f in os.listdir(directory) if f[0:5] == "resul" and f[-4:] == ".csv"
         ]
-        print(csv_filenames)
         weights_folder = [f for f in os.walk(directory)][0][1][0]
-        print(weights_folder)
         for filename in csv_filenames:
             experiment = directory_to_experiment_info(directory)
             with open("./" + directory + "/" + filename, "r") as csvfile:
@@ -231,7 +228,7 @@ def populate_experiments_dataframe():
 
             experiment["minimum_val_loss"] = min(experiment["val_loss"])
             experiment["minimum_loss"] = min(experiment["loss"])
-            number = int(filename.split("-")[-1].split(".")[0])
+            number = int(filename.split("_")[1].split(".")[0])
             experiment["number"] = number
             experiment["repeat"] = math.floor(number / 4)
             if (number % 4) / 2 < 1:
@@ -243,9 +240,8 @@ def populate_experiments_dataframe():
             else:
                 experiment["separate_channel_ops"] = False
 
-            print("collected stats from .csv file")
-            print(experiment)
-            if not experiment_in_dataframe("./experiments_dataframe.csv", experiment):
+
+            if not experiment_in_dataframe("./newest_experiments_dataframe.csv", experiment):
                 weights_file = (
                     directory + "/" + weights_folder + "/" + "mask_rcnn_fk2018_best.h5"
                 )
@@ -253,7 +249,6 @@ def populate_experiments_dataframe():
                 ae_dataset_filepath_dive1, ae_dataset_filepath_dive2, ae_dataset_filepath_dive3 = get_ae2000_dataset_filepaths(experiment)
                 if os.path.exists(weights_file):
                     # try:
-                    print("Calculating stats for tunasand data")
                     experiment["class_APs"], \
                     experiment["size_APs"], \
                     experiment["APs"], \
@@ -261,35 +256,33 @@ def populate_experiments_dataframe():
                     experiment["size_overlaps"], \
                     experiment["overlaps"] = get_stats(weights_file, dataset_filepath)
 
-                    update_dataframe("./experiments_dataframe.csv", experiment)
+                    experiment['ae_class_APs_dive1'], \
+                    experiment['ae_size_APs_dive1'], \
+                    experiment['ae_APs_dive1'], \
+                    experiment['ae_class_overlaps_dive1'], \
+                    experiment['ae_size_overlaps_dive1'], \
+                    experiment['ae_overlaps_dive1'] = get_stats(weights_file, ae_dataset_filepath_dive1)
 
-                    # experiment['ae_class_APs_dive1'], \
-                    # experiment['ae_size_APs_dive1'], \
-                    # experiment['ae_APs_dive1'], \
-                    # experiment['ae_class_overlaps_dive1'], \
-                    # experiment['ae_size_overlaps_dive1'], \
-                    # experiment['ae_overlaps_dive1'] = get_stats(weights_file, ae_dataset_filepath_dive1)
+                    experiment['ae_class_APs_dive2'], \
+                    experiment['ae_size_APs_dive2'], \
+                    experiment['ae_APs_dive2'], \
+                    experiment['ae_class_overlaps_dive2'], \
+                    experiment['ae_size_overlaps_dive2'], \
+                    experiment['ae_overlaps_dive2'] = get_stats(weights_file, ae_dataset_filepath_dive2)
 
-                    # experiment['ae_class_APs_dive2'], \
-                    # experiment['ae_size_APs_dive2'], \
-                    # experiment['ae_APs_dive2'], \
-                    # experiment['ae_class_overlaps_dive2'], \
-                    # experiment['ae_size_overlaps_dive2'], \
-                    # experiment['ae_overlaps_dive2'] = get_stats(weights_file, ae_dataset_filepath_dive2)
-
-                    # experiment['ae_class_APs_dive3'], \
-                    # experiment['ae_size_APs_dive3'], \
-                    # experiment['ae_APs_dive3'], \
-                    # experiment['ae_class_overlaps_dive3'], \
-                    # experiment['ae_size_overlaps_dive3'], \
-                    # experiment['ae_overlaps_dive3'] = get_stats(weights_file, ae_dataset_filepath_dive3)
+                    experiment['ae_class_APs_dive3'], \
+                    experiment['ae_size_APs_dive3'], \
+                    experiment['ae_APs_dive3'], \
+                    experiment['ae_class_overlaps_dive3'], \
+                    experiment['ae_size_overlaps_dive3'], \
+                    experiment['ae_overlaps_dive3'] = get_stats(weights_file, ae_dataset_filepath_dive3)
                     # except:
                     #     print("issue getting loss values")
                 else:
                     print("weights file doesn't exist")
                     print(weights_file)
 
-                
+                update_dataframe("./newest_experiments_dataframe.csv", experiment)
             else:
                 print("already in dataframe, skipping "+filename)
 
@@ -320,7 +313,7 @@ def add_aestats_to_dataframe():
         print(experiment)
         new_experiments.append(experiment)
     df = pd.DataFrame(new_experiments)
-    df.to_csv("./experiments_dataframe.csv")
+    df.to_csv("./new_experiments_dataframe.csv")
 
 
 def experiment_in_dataframe(df_filepath, experiment):
@@ -337,10 +330,10 @@ def experiment_in_dataframe(df_filepath, experiment):
 
 
 def update_dataframe(df_filepath, experiment):
-    df = pd.read_csv(df_filepath)
+    df = pd.read_csv(df_filepath, index_col=0)
     df = df.append(experiment, ignore_index=True)
-    print("saving experiment to ./experiments_dataframe.csv")
-    df.to_csv("./experiments_dataframe.csv", index=False)
+    print("saving experiment to ./newest_experiments_dataframe.csv")
+    df.to_csv("./newest_experiments_dataframe.csv", index=False)
 
 
 def get_experiments():

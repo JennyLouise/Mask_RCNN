@@ -443,8 +443,11 @@ def resize_image(image, min_dim=None, max_dim=None, min_scale=None, mode="square
             scale = max_dim / image_max
 
     # Resize image using bilinear interpolation
-    if scale != 1:
+    
+
+    if scale != 1 and mode != "pad_crop":
         image = resize(image, (round(h * scale), round(w * scale)), preserve_range=True)
+
 
     # Need padding or cropping?
     if mode == "square":
@@ -478,6 +481,23 @@ def resize_image(image, min_dim=None, max_dim=None, min_scale=None, mode="square
         padding = [(top_pad, bottom_pad), (left_pad, right_pad), (0, 0)]
         image = np.pad(image, padding, mode="constant", constant_values=0)
         window = (top_pad, left_pad, h + top_pad, w + left_pad)
+    elif mode == "padmindim":
+        h, w = image.shape[:2]
+        # Both sides must be divisible by 64
+        assert min_dim % 64 == 0, "Minimum dimension must be a multiple of 64"
+        if h < min_dim:
+            top_pad = (min_dim - h) // 2
+            bottom_pad = min_dim - h - top_pad
+        else:
+            top_pad = bottom_pad = 0
+        if w < min_dim:
+            left_pad = (min_dim - w) // 2
+            right_pad = min_dim - w - left_pad
+        else:
+            left_pad = right_pad = 0
+        padding = [(top_pad, bottom_pad), (left_pad, right_pad), (0, 0)]
+        image = np.pad(image, padding, mode="constant", constant_values=0)
+        window = (top_pad, left_pad, h + top_pad, w + left_pad)
     elif mode == "crop":
         # Pick a random crop
         h, w = image.shape[:2]
@@ -486,6 +506,31 @@ def resize_image(image, min_dim=None, max_dim=None, min_scale=None, mode="square
         crop = (y, x, min_dim, min_dim)
         image = image[y : y + min_dim, x : x + min_dim]
         window = (0, 0, min_dim, min_dim)
+    elif mode == "pad_crop":
+        h, w = image.shape[:2]
+        # Both sides must be divisible by 64
+        assert min_dim % 64 == 0, "Minimum dimension must be a multiple of 64"
+        if h < min_dim:
+            top_pad = (min_dim - h) // 2
+            bottom_pad = min_dim - h - top_pad
+        else:
+            top_pad = bottom_pad = 0
+        if w < min_dim:
+            left_pad = (min_dim - w) // 2
+            right_pad = min_dim - w - left_pad
+        else:
+            left_pad = right_pad = 0
+        padding = [(top_pad, bottom_pad), (left_pad, right_pad), (0, 0)]
+        image = np.pad(image, padding, mode="constant", constant_values=0)
+        window = (top_pad, left_pad, h + top_pad, w + left_pad)
+
+        h, w = image.shape[:2]
+        y = random.randint(0, (h - min_dim))
+        x = random.randint(0, (w - min_dim))
+        crop = (y, x, min_dim, min_dim)
+        image = image[y : y + min_dim, x : x + min_dim]
+        window = (0, 0, min_dim, min_dim)
+
     else:
         raise Exception("Mode {} not supported".format(mode))
     return image.astype(image_dtype), window, scale, padding, crop

@@ -3203,7 +3203,7 @@ def mold_image(images, config):
     the mean pixel and converts it to float. Expects image
     colors in RGB order.
     """
-    return images.astype(np.float32) - config.MEAN_PIXEL
+    return (images.astype(np.float32) - config.MEAN_PIXEL) #/ config.STD_PIXEL
 
 
 def unmold_image(normalized_images, config):

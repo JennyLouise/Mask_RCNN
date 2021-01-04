@@ -76,7 +76,7 @@ DEFAULT_DATASET_YEAR = "2018"
 class FKConfig(Config):
     """Configuration for training on MS COCO.
     Derives from the base Config class and overrides values specific
-    to the COCO dataset.
+    to the FK2018 dataset.
     """
     # Give the configuration a recognizable name
     NAME = "fk2018"
@@ -103,6 +103,23 @@ class FKConfig(Config):
     
     RPN_NMS_THRESHOLD = 0.9
     TRAIN_ROIS_PER_IMAGE = 100 
+
+    IMAGE_RESIZE_MODE = "pad_crop"
+    IMAGE_MIN_DIM = 1024
+    IMAGE_MAX_DIM = 1024
+
+    # # # Image mean (RGB)
+    # MEAN_PIXEL = np.array([80, 80, 80])
+    # STD_PIXEL = np.array([20, 20, 20])
+
+    # altitude corrected
+    MEAN_PIXEL = np.array([90, 90, 90])
+    STD_PIXEL = np.array([18, 20, 16])
+
+    # # greyworld corrected
+    # MEAN_PIXEL = np.array([73, 73, 72])
+    # STD_PIXEL = np.array([27, 27, 26])
+
 
 ############################################################
 #  Dataset
@@ -443,55 +460,67 @@ def train_nnet(section1_epochs=10, section2_epochs=20, section3_epochs=300, lear
 
         # Image Augmentation
         # Right/Left flip 50% of the time
-        augmentation = iaa.Sequential([
-            iaa.Sometimes(add_freq, iaa.Add(value=add_value, per_channel=add_pc_freq)),
-            iaa.Sometimes(multiply_freq, iaa.Multiply(mul=multiply_value, per_channel=multiply_pc_freq)),
-            iaa.Sometimes(snp_freq, iaa.SaltAndPepper(snp_p)),
-            iaa.Sometimes(jpeg_freq, iaa.JpegCompression(compression=jpeg_compression)),
-            iaa.Sometimes(gaussian_freq, iaa.GaussianBlur(sigma=gaussian_sigma)),
-            iaa.Sometimes(motion_freq, iaa.MotionBlur(k=motion_k)),
-            iaa.Sometimes(contrast_freq, iaa.LinearContrast(alpha=contrast_alpha)),
-            iaa.Fliplr(fliplr),
-            iaa.Flipud(flipud),
-            iaa.Sometimes(affine_freq, iaa.PiecewiseAffine(scale=affine_scale, nb_rows=8, nb_cols=8,polygon_recoverer='auto')),
-            iaa.Sometimes(transform_freq, iaa.PerspectiveTransform(scale=transform_scale, keep_size=True)),
-            iaa.Sometimes(elastic_freq, iaa.ElasticTransformation(sigma=elastic_sigma, alpha=elastic_alpha)),
-            iaa.Sometimes(rotate, iaa.Rot90([0,1,2,3]))
+        # augmentation = iaa.Sequential([
+        #     iaa.Sometimes(add_freq, iaa.Add(value=add_value, per_channel=add_pc_freq)),
+        #     iaa.Sometimes(multiply_freq, iaa.Multiply(mul=multiply_value, per_channel=multiply_pc_freq)),
+        #     iaa.Sometimes(snp_freq, iaa.SaltAndPepper(snp_p)),
+        #     iaa.Sometimes(jpeg_freq, iaa.JpegCompression(compression=jpeg_compression)),
+        #     iaa.Sometimes(gaussian_freq, iaa.GaussianBlur(sigma=gaussian_sigma)),
+        #     iaa.Sometimes(motion_freq, iaa.MotionBlur(k=motion_k)),
+        #     iaa.Sometimes(contrast_freq, iaa.LinearContrast(alpha=contrast_alpha)),
+        #     iaa.Fliplr(fliplr),
+        #     iaa.Flipud(flipud),
+        #     iaa.Sometimes(affine_freq, iaa.PiecewiseAffine(scale=affine_scale, nb_rows=8, nb_cols=8,polygon_recoverer='auto')),
+        #     iaa.Sometimes(transform_freq, iaa.PerspectiveTransform(scale=transform_scale, keep_size=True)),
+        #     iaa.Sometimes(elastic_freq, iaa.ElasticTransformation(sigma=elastic_sigma, alpha=elastic_alpha)),
+        #     iaa.Sometimes(rotate, iaa.Rot90([0,1,2,3]))
 
-            # iaa.Fliplr(0.5), # horizontal flips
-            # iaa.Crop(percent=(0, 0.1)), # random crops
-            # # Small gaussian blur with random sigma between 0 and 0.25.
-            # # But we only blur about 50% of all images.
-            # iaa.Sometimes(0.5,
-            #     iaa.GaussianBlur(sigma=(0, 0.25))
-            # ),
-            # # Strengthen or weaken the contrast in each image.
-            # iaa.ContrastNormalization((0.75, 1.5)),
-            # # Add gaussian noise.
-            # # For 50% of all images, we sample the noise once per pixel.
-            # # For the other 50% of all images, we sample the noise per pixel AND
-            # # channel. This can change the color (not only brightness) of the
-            # # pixels.
-            # iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05*255)),
-            # # Make some images brighter and some darker.
-            # # In 20% of all cases, we sample the multiplier once per channel,
-            # # which can end up changing the color of the images.
-            # iaa.Multiply((0.8, 1.2)),
-            # # Apply affine transformations to each image.
-            # # Scale/zoom them, translate/move them, rotate them and shear them.
-            # iaa.Affine(
-            #     scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
-            #     #translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
-            #     rotate=(-180, 180),
-            #     #shear=(-8, 8)
-            # )
-        ], random_order=True)
+        #     # iaa.Fliplr(0.5), # horizontal flips
+        #     # iaa.Crop(percent=(0, 0.1)), # random crops
+        #     # # Small gaussian blur with random sigma between 0 and 0.25.
+        #     # # But we only blur about 50% of all images.
+        #     # iaa.Sometimes(0.5,
+        #     #     iaa.GaussianBlur(sigma=(0, 0.25))
+        #     # ),
+        #     # # Strengthen or weaken the contrast in each image.
+        #     # iaa.ContrastNormalization((0.75, 1.5)),
+        #     # # Add gaussian noise.
+        #     # # For 50% of all images, we sample the noise once per pixel.
+        #     # # For the other 50% of all images, we sample the noise per pixel AND
+        #     # # channel. This can change the color (not only brightness) of the
+        #     # # pixels.
+        #     # iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05*255)),
+        #     # # Make some images brighter and some darker.
+        #     # # In 20% of all cases, we sample the multiplier once per channel,
+        #     # # which can end up changing the color of the images.
+        #     # iaa.Multiply((0.8, 1.2)),
+        #     # # Apply affine transformations to each image.
+        #     # # Scale/zoom them, translate/move them, rotate them and shear them.
+        #     # iaa.Affine(
+        #     #     scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+        #     #     #translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+        #     #     rotate=(-180, 180),
+        #     #     #shear=(-8, 8)
+        #     # )
+        # ], random_order=True)
 
-        auglist=[iaa.Add(value=add_value, per_channel=separate_channel_operations), iaa.Multiply(mul=multiply_value, per_channel=separate_channel_operations), iaa.SaltAndPepper(snp_p), iaa.JpegCompression(compression=jpeg_compression), iaa.GaussianBlur(sigma=gaussian_sigma), iaa.MotionBlur(k=motion_k), iaa.LinearContrast(alpha=contrast_alpha), iaa.Fliplr(fliplr), iaa.Flipud(flipud), iaa.PiecewiseAffine(scale=affine_scale, nb_rows=8, nb_cols=8,polygon_recoverer='auto'), iaa.PerspectiveTransform(scale=transform_scale, keep_size=True), iaa.Rot90([0,1,2,3])]
+        auglist=[
+                iaa.Add(value=add_value, per_channel=separate_channel_operations),
+                iaa.Multiply(mul=multiply_value, per_channel=separate_channel_operations),
+                iaa.SaltAndPepper(snp_p),
+                iaa.JpegCompression(compression=jpeg_compression),
+                iaa.GaussianBlur(sigma=gaussian_sigma),
+                iaa.MotionBlur(k=motion_k),
+                iaa.LinearContrast(alpha=contrast_alpha),
+                iaa.Fliplr(fliplr),
+                iaa.Flipud(flipud),
+                iaa.PiecewiseAffine(scale=affine_scale, nb_rows=8, nb_cols=8,polygon_recoverer='auto'),
+                iaa.PerspectiveTransform(scale=transform_scale, keep_size=True),
+                iaa.Rot90([0,1,2,3])]
         if(elastic_transformations):
             auglist.append(iaa.ElasticTransformation(sigma=elastic_sigma, alpha=elastic_alpha))
         augmentation = iaa.SomeOf((0, 5), auglist, random_order=True)
-
+        augmentation = None
         #setting augmentation to original "old main" version
     #   augmentation = iaa.Sometimes(.667, iaa.Sequential([
     #            iaa.Fliplr(0.5), # horizontal flips
@@ -528,7 +557,8 @@ def train_nnet(section1_epochs=10, section2_epochs=20, section3_epochs=300, lear
                    learning_rate=learning_rate,
                    epochs=5, #40
                    layers='rpn',
-                   augmentation=augmentation)
+                   augmentation=augmentation
+                   )
 
         print("Training network heads")
         model.train(dataset_train, dataset_val,

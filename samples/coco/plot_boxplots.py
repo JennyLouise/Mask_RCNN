@@ -18,7 +18,7 @@ def get_dataset_filepath(experiment):
     filepath = "/Volumes/jw22g14_phd/fk2018/tunasand/20180805_215810_ts_un6k/processed/image/i20180805_215810/"
     if experiment["colour_correction_type"] == "histogram_normalised":
         filepath += "histogram_normalised/"
-    elif experiment["colour_correction_type"] == "greyworld_corrected":
+    elif experiment["colour_correction_type"] == "greyworld":
         filepath += "greyworld_correction/"
     elif experiment["colour_correction_type"] == "attenuation_correction":
         filepath += "attenuation_correction/"
