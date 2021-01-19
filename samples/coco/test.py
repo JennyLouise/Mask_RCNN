@@ -4,6 +4,8 @@ import csv
 import math
 import tensorflow as tf
 import FK2018
+import objgraph
+from pympler.tracker import SummaryTracker
 
 import mrcnn.model as modellib
 import pandas as pd
@@ -33,8 +35,8 @@ def get_dataset_filepath(experiment):
     # filepath = "/scratch/jw22g14/FK2018/tunasand/20180805_215810_ts_un6k/images/processed/image/i20180805_215810/"
     if experiment["colour_correction_type"] == "histogram_normalised":
         filepath += "histogram_normalised/"
-    elif experiment["colour_correction_type"] == "greyworld":
-        filepath += "greyworld_correction/"
+    elif experiment["colour_correction_type"] == "grey":
+        filepath += "greyworld/"
     elif experiment["colour_correction_type"] == "alt":
         filepath += "altitude_corrected/"
     else:
@@ -46,37 +48,39 @@ def get_dataset_filepath(experiment):
     else:
         filepath += "no_distortion/"
 
-    rescaling_dict={"res_nn":"rescaled_nn"}
+    rescaling_dict={"res_nn":"rescaled_nn", "drop_res":"dropped_resolution", "rescaled":"rescaled", "not_rescaled":"not_rescaled", "drop_res_up":"dropped_resolution_scaledup", "drop_res_up_nn": "dropped_resolution_scaledup_nn", "drop_res_nn": "dropped_resolution_nn"}
 
-    filepath += experiment['rescaled'] + "/"
+    filepath += rescaling_dict[experiment['rescaled']] + "/"
 
     filepath += "val"
     return filepath
 
 
 def get_ae2000_dataset_filepaths(experiment):
-    filepath = "/Volumes/jw22g14_phd/fk2018/ae2000/ae2000_overlap/coco/"
-    if experiment["colour_correction_type"] == "histogram_normalised":
-        filepath += "histogram"
-    elif experiment["colour_correction_type"] == "greyworld":
-        filepath += "greyworld"
+    filepath = "/home/jenny/Documents/FK2018/ae/"
+    if experiment["colour_correction_type"] == "raw":
+        filepath += "raw/"
+    elif experiment["colour_correction_type"] == "grey":
+        filepath += "greyworld/"
     elif experiment["colour_correction_type"] == "alt":
-        filepath += "alt"
+        filepath += "altitude/"
     else:
         print(experiment["colour_correction_type"])
         exit()
 
     if experiment["distortion_correction"]:
-        filepath += "_dist"
+        filepath += "distortion_corrected/"
     else:
-        filepath += "_nodist"
+        filepath += "no_distortion_correction/"
 
-    if experiment["rescaled"]:
-        filepath += "_rescaled/"
-    else:
-        filepath += "/"
+    filepath_list = []
 
-    return [filepath + "dive1", filepath + "dive2", filepath + "dive3"]
+    #TODO match
+    rescaling_dict={"res_nn":"upscaled_nn", "drop_res":"rescaled", "rescaled":"upscaled", "not_rescaled":"not_rescaled", "drop_res_up":"upscaled", "drop_res_up_nn": "upscaled_nn", "drop_res_nn": "rescaled_nn"}
+    rescaling_type =rescaling_dict[experiment['rescaled']]
+    for area in ["area1", "area2", "area3"]:
+        filepath_list.append(f"{filepath}{rescaling_type}/{area}")
+    return filepath_list
 
 
 def load_images(image_ids, dataset, config):
@@ -92,80 +96,75 @@ def load_images(image_ids, dataset, config):
             images.append({'image':image, 'image_meta':image_meta, 'gt_class_id':gt_class_id, 'gt_bbox':gt_bbox, 'gt_mask':gt_mask})
     return images
 
-def compute_classless_batch_ap(image_ids, dataset, model, config):
-    APs = []
-    size_APs = {}
-    size_overlaps = {}
-    overlaps_list = []
-    for iteration in range(1):
-        images=load_images(image_ids, dataset, config)
-        logging.debug("running detection for iteration "+str(iteration))
-        for n, image in enumerate(images):
-            if len(image['gt_class_id']) > 0:
-                logging.debug("getting stats for image " +str(image['image_meta'][0]))
-                # Compute AP
-                results = model.detect([image['image']], verbose=0)
-                r = results[0]
-                for id_num in range(len(r["class_ids"])):
-                    r["class_ids"][id_num] = 0
-                for id_num in range(len(image["gt_class_id"])):
-                    image["gt_class_id"][id_num] = 0
-                for i, roi in enumerate(r["rois"]):
-                    mask_size = np.sum(r["masks"][:, :, i].flatten())
-                    singleton_rois = np.array([roi])
-                    singleton_class_ids = np.array([r["class_ids"][i]])
-                    singleton_scores = np.array([r["scores"][i]])
-                    singleton_masks = np.zeros([1024, 1024, 1])
-                    singleton_masks[:, :, 0] = np.array(r["masks"][:, :, i])
-                    AP, precisions, recalls, overlaps = utils.compute_ap(
-                        image['gt_bbox'],
-                        image['gt_class_id'],
-                        image['gt_mask'],
-                        np.array([roi]),
-                        np.array([r["class_ids"][i]]),
-                        np.array([r["scores"][i]]),
-                        np.array([singleton_masks]),
-                    )
-
-                    if mask_size in size_APs.keys():
-                        size_APs[mask_size].append(AP)
-                        size_overlaps[mask_size].append(overlaps)
-                    else:
-                        size_APs[mask_size] = [AP]
-                        size_overlaps[mask_size] = [overlaps]
-                    APs.append(AP)
-                    overlaps_list.append(overlaps)
-    logging.debug("finished all 5 iterations for these images")
-    return size_APs, APs, size_overlaps, overlaps_list
 
 def compute_both_batch_aps(image_ids, dataset, model, config):
-    APs = []
-    class_list = []
-    size_list = []
+    AP_list = []
+    classless_AP_list = []
+    precision_list = []
+    classless_precision_list = []
+    recall_list = []
+    classless_recall_list = []
+    predicted_class_list = []
+    gt_class_list = []
+    predicted_size_list = []
+    gt_size_list = []
     overlaps_list = []
-    classless_APs = []
     classless_overlaps_list = []
     total_predicted_pixels = 0
     total_groundtruth_pixels = 0
     total_overlapping_pixels = 0
 
 
-    iterations=15
+    iterations=5
     for iteration in range(iterations):
         images=load_images(image_ids, dataset, config)
         logging.debug("running detection for iteration "+str(iteration))
         for n, image in enumerate(images):
             if len(image['gt_class_id']) > 0:
                 logging.debug("getting stats for image " +str(image['image_meta'][0]))
+
                 # Compute AP
                 results = model.detect([image['image']], verbose=0)
                 r = results[0]
+                logging.debug(f"With {len(r['rois'])} regions of interest")
                 r["blank_class_ids"]=[]
                 image["gt_blank_class_ids"]=[]
                 for id_num in range(len(r["class_ids"])):
                     r["blank_class_ids"].append(0)
                 for id_num in range(len(image["gt_class_id"])):
                     image["gt_blank_class_ids"].append(0)
+
+                masks_shape = r["masks"].shape
+                print(image['image_meta'][0])
+                print(masks_shape)
+                AP, precisions, recalls, overlaps = utils.compute_ap(
+                        image['gt_bbox'],
+                        image['gt_class_id'],
+                        image['gt_mask'],
+                        r['rois'],
+                        r["class_ids"],
+                        r["scores"],
+                        np.reshape(r["masks"], [masks_shape[0], masks_shape[1], 1, masks_shape[2]]),
+                        iou_threshold=0.5,
+                    )
+                AP_list.append(AP)
+                precision_list.append(precisions)
+                recall_list.append(recalls)
+
+                classless_AP, classless_precisions, classless_recalls, classless_overlaps = utils.compute_ap(
+                        image['gt_bbox'],
+                        np.array(image['gt_blank_class_ids']),
+                        image['gt_mask'],
+                        r['rois'],
+                        np.array(r["blank_class_ids"]),
+                        r["scores"],
+                        np.reshape(r["masks"], [masks_shape[0], masks_shape[1], 1, masks_shape[2]]),
+                        iou_threshold=0.5,
+                    )
+                classless_AP_list.append(classless_AP)
+                classless_precision_list.append(classless_precisions)
+                classless_recall_list.append(classless_recalls)
+
                 for i, roi in enumerate(r["rois"]):
                     mask_size = np.sum(r["masks"][:, :, i].flatten())
                     predicted_pixels = np.any(r["masks"], axis=2)
@@ -188,6 +187,7 @@ def compute_both_batch_aps(image_ids, dataset, model, config):
                         np.array([r["class_ids"][i]]),
                         np.array([r["scores"][i]]),
                         np.array([singleton_masks]),
+                        iou_threshold=0.5,
                     )
                     classless_AP, classless_precision, classless_recalls, classless_overlaps = utils.compute_ap(
                         image['gt_bbox'],
@@ -197,72 +197,23 @@ def compute_both_batch_aps(image_ids, dataset, model, config):
                         np.array([r["blank_class_ids"][i]]),
                         np.array([r["scores"][i]]),
                         np.array([singleton_masks]),
+                        iou_threshold=0.5,
                     )
 
-                    APs.append(AP)
-                    class_list.append(r["class_ids"][i])
-                    size_list.append(mask_size)
+                    match_num = np.argmax(overlaps)
+                    predicted_class_list.append(r["class_ids"][i])
+                    gt_class_list.append(image['gt_class_id'][match_num])
+                    predicted_size_list.append(mask_size)
+                    gt_size_list.append(np.sum(image['gt_mask'][match_num].flatten()))
                     overlaps_list.append(np.max(overlaps))
-                    classless_APs.append(classless_AP)
                     classless_overlaps_list.append(np.max(classless_overlaps))
 
 
+    logging.debug(f"found {len(overlaps_list)} overlap values")
     logging.debug(f"finished all {iterations} iterations for these images")
-    return APs, class_list, size_list, overlaps_list, classless_APs, classless_overlaps_list, total_predicted_pixels, total_groundtruth_pixels, total_overlapping_pixels
+    return AP_list, classless_AP_list, precision_list, classless_precision_list, recall_list, classless_recall_list, predicted_class_list, gt_class_list, predicted_size_list, gt_size_list, overlaps_list, classless_overlaps_list, total_predicted_pixels, total_groundtruth_pixels, total_overlapping_pixels
 
 
-
-def compute_batch_ap(image_ids, dataset, model, config):
-
-    APs = []
-    class_APs = {}
-    size_APs = {}
-    class_overlaps = {}
-    size_overlaps = {}
-    overlaps_list = []
-
-    for iteration in range(15):
-        images=load_images(image_ids, dataset, config)
-        logging.debug("running detection for iteration "+str(iteration))
-        for n, image in enumerate(images):
-            if len(image['gt_class_id']) > 0:
-                logging.debug("getting stats for image " +str(image['image_meta'][0]))
-                # Compute AP
-                results = model.detect([image['image']], verbose=0)
-                r = results[0]
-                for i, roi in enumerate(r["rois"]):
-                    mask_size = np.sum(r["masks"][:, :, i].flatten())
-                    singleton_rois = np.array([roi])
-                    singleton_class_ids = np.array([r["class_ids"][i]])
-                    singleton_scores = np.array([r["scores"][i]])
-                    singleton_masks = np.zeros([1024, 1024, 1])
-                    singleton_masks[:, :, 0] = np.array(r["masks"][:, :, i])
-                    AP, precisions, recalls, overlaps = utils.compute_ap(
-                        image['gt_bbox'],
-                        image['gt_class_id'],
-                        image['gt_mask'],
-                        np.array([roi]),
-                        np.array([r["class_ids"][i]]),
-                        np.array([r["scores"][i]]),
-                        np.array([singleton_masks]),
-                    )
-                    if r["class_ids"][i] in class_APs.keys():
-                        class_APs[r["class_ids"][i]].append(AP)
-                        class_overlaps[r["class_ids"][i]].append(overlaps)
-                    else:
-                        class_APs[r["class_ids"][i]] = [AP]
-                        class_overlaps[r["class_ids"][i]] = [overlaps]
-
-                    if mask_size in size_APs.keys():
-                        size_APs[mask_size].append(AP)
-                        size_overlaps[mask_size].append(overlaps)
-                    else:
-                        size_APs[mask_size] = [AP]
-                        size_overlaps[mask_size] = [overlaps]
-                    APs.append(AP)
-                    overlaps_list.append(overlaps)
-    logging.debug("finished all 5 iterations for these images")
-    return class_APs, size_APs, APs, class_overlaps, size_overlaps, overlaps_list
 
 
 def load_dataset(filepath):
@@ -288,7 +239,7 @@ def get_stats(weights_filepath, dataset):
     # Useful if you're training a model on the same
     # machine, in which case use CPU and leave the
     # GPU for training.
-    DEVICE = "/cpu:0"  # /cpu:0 or /gpu:0
+    # DEVICE = "/gpu:0"  # /cpu:0 or /gpu:0
 
     # Inspect the model in training or inference modes
     # values: 'inference' or 'training'
@@ -296,19 +247,24 @@ def get_stats(weights_filepath, dataset):
     TEST_MODE = "inference"
 
     # Must call before using the dataset
+    dataset.prepare()
 
+    print(dataset)
     logging.debug("Images: {}\nClasses: {}".format(len(dataset.image_ids), dataset.class_names))
 
-    with tf.device(DEVICE):
+    # with tf.device(DEVICE):
+    tf_config=tf.ConfigProto()
+    tf_config.gpu_options.allow_growth = True
+    with tf.Session(config=tf_config).as_default():
         model = modellib.MaskRCNN(mode="inference", model_dir="./log", config=config)
 
         # Load weights
-    logging.debug("Loading weights ", weights_filepath)
-    model.load_weights(weights_filepath, by_name=True)
-    image_ids = dataset.image_ids
-    APs, class_list, size_list, overlaps_list, classless_APs, classless_overlaps_list, total_predicted_pixels, total_groundtruth_pixels, total_overlapping_pixels = compute_both_batch_aps(image_ids, dataset, model, config)
+        logging.debug("Loading weights "+ str(weights_filepath))
+        model.load_weights(weights_filepath, by_name=True)
+        image_ids = dataset.image_ids
+        AP_list, classless_AP_list, precision_list, classless_precision_list, recall_list, classless_recall_list, predicted_class_list, gt_class_list, predicted_size_list, gt_size_list, overlaps_list, classless_overlaps_list, total_predicted_pixels, total_groundtruth_pixels, total_overlapping_pixels = compute_both_batch_aps(image_ids, dataset, model, config)
 
-    return APs, class_list, size_list, overlaps_list, classless_APs, classless_overlaps_list, total_predicted_pixels, total_groundtruth_pixels, total_overlapping_pixels
+    return AP_list, classless_AP_list, precision_list, classless_precision_list, recall_list, classless_recall_list, predicted_class_list, gt_class_list, predicted_size_list, gt_size_list, overlaps_list, classless_overlaps_list, total_predicted_pixels, total_groundtruth_pixels, total_overlapping_pixels
 
 
 
@@ -327,7 +283,7 @@ def plot_class_boxplots():
 
 def directory_to_experiment_info(directory):
     colour_correction_type = directory.split("/")[-1].split("-")[0]
-    if directory.split("/")[-1].split("-")[1] == "distortion_correction":
+    if directory.split("/")[-1].split("-")[1] == "d":
         distortion_correction = True
     else:
         distortion_correction = False
@@ -358,6 +314,7 @@ def add_single_experiment(directory, df_filepath, datasets):
     csv_filenames = [
             f for f in os.listdir(directory) if f[0:5] == "resul" and f[-4:] == ".csv"
     ]
+    print(list(os.walk(directory)))
     weights_folder = [f for f in os.walk(directory)][0][1][0]
     for filename in csv_filenames:
         experiment = directory_to_experiment_info(directory)
@@ -390,81 +347,113 @@ def add_single_experiment(directory, df_filepath, datasets):
             weights_file = (
                 directory + "/" + weights_folder + "/" + "mask_rcnn_fk2018_best.h5"
             )
-            if os.path.exists(weights_file):
-                # try:
+            config = FK2018.FKConfig()
+            print("got config")
+            
+
+            class InferenceConfig(config.__class__):
+                # Run detection on one image at a time
+                GPU_COUNT = 1
+                IMAGES_PER_GPU = 1
+
+            config = InferenceConfig()
+            config.display()
+            # Device to load the neural network on.
+            # Useful if you're training a model on the same
+            # machine, in which case use CPU and leave the
+            # GPU for training.
+            # DEVICE = "/gpu:0"  # /cpu:0 or /gpu:0
+
+            # Inspect the model in training or inference modes
+            # values: 'inference' or 'training'
+            # TODO: code for 'training' test mode not ready yet
+            TEST_MODE = "inference"
+
+            # Must call before using the dataset
+            
+
+            # with tf.device(DEVICE):
+            tf_config=tf.ConfigProto()
+            tf_config.gpu_options.allow_growth = True
+            with tf.Session(config=tf_config).as_default():
+                model = modellib.MaskRCNN(mode="inference", model_dir="./log", config=config)
+
+                # Load weights
+                logging.debug("Loading weights "+ str(weights_file))
+                model.load_weights(weights_file, by_name=True)
+                image_ids = datasets[0].image_ids
+
+                tracker = SummaryTracker()
                 logging.debug("getting stats")
                 logging.debug("tunasand stats")
-                experiment["APs"], \
-                experiment["class_list"], \
-                experiment["size_list"], \
+
+                experiment["AP_list"], \
+                experiment["classless_AP_list"], \
+                experiment["precision_list"], \
+                experiment["classless_precision_list"], \
+                experiment["recall_list"], \
+                experiment["classless_recall_list"], \
+                experiment["predicted_class_list"], \
+                experiment["gt_class_list"], \
+                experiment["predicted_size_list"], \
+                experiment["gt_size_list"], \
                 experiment["overlaps"], \
-                experiment["classless_APs"], \
                 experiment["classless_overlaps_list"], \
                 experiment["total_predicted_pixels"], \
                 experiment["total_groundtruth_pixels"], \
-                experiment["total_overlapping_pixels"] = get_stats(weights_file, datasets[0])
+                experiment["total_overlapping_pixels"] = compute_both_batch_aps(image_ids, datasets[0], model, config) #get_stats(weights_file, datasets[0])
 
+                objgraph.show_most_common_types()
+                roots = objgraph.get_leaking_objects()
+                print(len(roots))
+                tracker.print_diff()
 
-                # logging.debug("aestats, dive1")
-                # experiment['ae_APs_dive1'], \
-                # experiment['ae_class_list_dive1'], \
-                # experiment['ae_size_list_dive1'], \
-                # experiment['ae_overlaps_dive1'], \
-                # experiment["ae_classless_APs_dive1"], \
-                # experiment["ae_classless_overlaps_list_dive1"], \
-                # experiment["ae_total_predicted_pixels_dive1"], \
-                # experiment["ae_total_groundtruth_pixels_dive1"], \
-                # experiment["ae_total_overlapping_pixels_dive1"]  = get_stats(weights_file, datasets[1])
+                for i, dataset in enumerate(["AE_area1", "AE_area2", "AE_area3"]):
+                    image_ids = datasets[i+1].image_ids
+                    logging.debug(f"aestats, {dataset}")
+                    experiment[f"AP_list_{dataset}"], \
+                    experiment[f"classless_AP_list_{dataset}"], \
+                    experiment[f"precision_list_{dataset}"], \
+                    experiment[f"classless_precision_list_{dataset}"], \
+                    experiment[f"recall_list_{dataset}"], \
+                    experiment[f"classless_recall_list_{dataset}"], \
+                    experiment[f"predicted_class_list_{dataset}"], \
+                    experiment[f"gt_class_list_{dataset}"], \
+                    experiment[f"predicted_size_list_{dataset}"], \
+                    experiment[f"gt_size_list_{dataset}"], \
+                    experiment[f"overlaps_{dataset}"], \
+                    experiment[f"classless_overlaps_list_{dataset}"], \
+                    experiment[f"total_predicted_pixels_{dataset}"], \
+                    experiment[f"total_groundtruth_pixels_{dataset}"], \
+                    experiment[f"total_overlapping_pixels_{dataset}"]  = compute_both_batch_aps(image_ids, datasets[i+1], model, config) #get_stats(weights_file, datasets[i+1])
+                    objgraph.show_growth()
+                    roots = objgraph.get_leaking_objects()
+                    print(len(roots))  
+                    tracker.print_diff()
 
-
-                # logging.debug("aestats, dive2")
-                # experiment['ae_APs_dive2'], \
-                # experiment['ae_class_list_dive2'], \
-                # experiment['ae_size_list_dive2'], \
-                # experiment['ae_overlaps_dive2'], \
-                # experiment["ae_classless_APs_dive2"], \
-                # experiment["ae_classless_overlaps_list_dive2"], \
-                # experiment["ae_total_predicted_pixels_dive2"], \
-                # experiment["ae_total_groundtruth_pixels_dive2"], \
-                # experiment["ae_total_overlapping_pixels_dive2"]  = get_stats(weights_file, datasets[2])
-
-                # logging.debug("aestats, dive3")
-                # experiment['ae_APs_dive3'], \
-                # experiment['ae_class_list_dive3'], \
-                # experiment['ae_size_list_dive3'], \
-                # experiment['ae_overlaps_dive3'], \
-                # experiment["ae_classless_APs_dive3"], \
-                # experiment["ae_classless_overlaps_list_dive3"], \
-                # experiment["ae_total_predicted_pixels_dive3"], \
-                # experiment["ae_total_groundtruth_pixels_dive3"], \
-                # experiment["ae_total_overlapping_pixels_dive3"]   = get_stats(weights_file, datasets[3])
-
-                # except:
-                #     print("issue getting loss values")
-            else:
-                print("weights file doesn't exist")
-                print(weights_file)
+            
             update_dataframe(df_filepath, experiment)
         else:
             print("already in dataframe, skipping "+filename)
 
 
 
-def populate_experiments_dataframe(number):
+def create_dataframe(number=None, outfile="", folder="logs"):
     print("LOADED IMPORTS - NOW RUNNING CODE")
-    df_filepath = './experiments_dataframe_'+str(number)+'.csv'
+    df_filepath = f"./experiments_dataframe_{outfile}.csv"
     logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',filename='log'+str(number)+'.log',level=logging.DEBUG)
     experiments = []
-    dataset=array_num_to_dataset(number)
-    files = [x for x in os.walk("./logs/")][0][1]
-    directories = ["./logs/" + f for f in files]
+    files = [x for x in os.walk(f"./{folder}/")][0][1]
+    directories = [f"./{folder}/" + f for f in files]
     
     print(directories)
     for directory in directories:
-        experiment=directory_to_experiment_info(directories[0])
+        experiment=directory_to_experiment_info(directory)
         dataset_filepath = get_dataset_filepath(experiment)
-        ae_dataset_filepath_dive1, ae_dataset_filepath_dive2, ae_dataset_filepath_dive3 = get_ae2000_dataset_filepaths(experiment)
-        datasets=[load_dataset(dataset_filepath), None, None, None]#load_dataset(ae_dataset_filepath_dive1), load_dataset(ae_dataset_filepath_dive2), load_dataset(ae_dataset_filepath_dive3)]
+        ae_dataset_filepaths = get_ae2000_dataset_filepaths(experiment)
+        datasets=[dataset_filepath]#load_dataset(ae_dataset_filepath_dive1), load_dataset(ae_dataset_filepath_dive2), load_dataset(ae_dataset_filepath_dive3)]
+        datasets.extend(ae_dataset_filepaths)
+        datasets = [load_dataset(d) for d in datasets]
         add_single_experiment(directory, df_filepath, datasets)
     return
 
@@ -477,7 +466,6 @@ def experiment_in_dataframe(df_filepath, experiment):
     if not os.path.exists(df_filepath):
         return False
     df = pd.read_csv(df_filepath)
-    print(df)
     pre_existing_experiment = df.loc[
             (df["colour_correction_type"] == experiment["colour_correction_type"])
             & (df["distortion_correction"] == experiment["distortion_correction"])
@@ -502,10 +490,6 @@ def get_experiments():
     df = pd.read_csv("./experiments_dataframe.csv")
     return df
 
-
-def create_dataframe(number):
-    print("CREATING DATAFRAME")
-    df = populate_experiments_dataframe(number)
 
 def array_num_to_dataset(number):
     num_to_dataset_dict = {0:['histogram_normalised','no_distortion_correction','dropped_resolution'],
@@ -538,6 +522,10 @@ def array_num_to_dataset(number):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Pass job array id')
     parser.add_argument('array_id', type=int, help='job array id')
+    parser.add_argument('outfile', type=str, help='output filename')
+    parser.add_argument('logs_folder', type=str, default='logs')
     args = parser.parse_args()
     number = args.array_id
-    create_dataframe(number)
+    outfile = args.outfile
+    logs_folder = args.logs_folder
+    create_dataframe(number=number, outfile=outfile, folder=logs_folder)
