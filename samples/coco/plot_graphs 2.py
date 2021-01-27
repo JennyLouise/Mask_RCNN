@@ -12,6 +12,7 @@ from itertools import chain
 import logging
 from matplotlib.patches import Patch
 import glob
+from pandas.plotting import table
 
 import matplotlib.ticker as ticker
 
@@ -21,8 +22,8 @@ experiment_level_graph_settings=[
                     ["rescaled", "deep", ["not_rescaled", "res_nn", "drop_res_nn", "drop_res_up_nn"],["Original Scale", "Average Low\n Altitude Scale", "Average High\n Altitude Scale", "Average Low\n Altitude Scale\n with High\n Altitude Resolution"]],
                     ["distortion_correction", "Blues", [False, True], ["Original Image", "Distortion Corrected"]], 
                     ["colour_correction_type", "Reds", ["grey", "alt"], ["Greyworld Corrected", "Altitude Corrected"]], 
-                    ["separate_channel_ops", "PiYG", [False, True], ["Cross Channel Operations", "Separate Channel Operations"]],
-                    ["elastic_distortions","PRGn",[False, True], ["Without Elastic Distortions", "With Elastic Distortions"]]
+                    # ["separate_channel_ops", "PiYG", [False, True], ["Cross Channel Operations", "Separate Channel Operations"]],
+                    # ["elastic_distortions","PRGn",[False, True], ["Without Elastic Distortions", "With Elastic Distortions"]]
                 ]
 
 instance_level_graph_settings = []
@@ -167,6 +168,10 @@ def plot_boxplots(experiments):
             "AP_list_AE_area1",
             "AP_list_AE_area2",
             "AP_list_AE_area3",
+            "classless_AP_list",
+            "classless_AP_list_AE_area1",
+            "classless_AP_list_AE_area2",
+            "classless_AP_list_AE_area3",
         ]:
             experiment[value] = stringlist_to_list(experiment[value])
         experiment['mean_overlap'] = np.mean(experiment['overlaps'])
@@ -180,6 +185,10 @@ def plot_boxplots(experiments):
         experiment['50_threshold'] = len([i for i in experiment['overlaps'] if i >= 0.5])/len(experiment['overlaps'])
         experiment['mean_nonzero_overlaps'] = np.mean([item for item in experiment['overlaps'] if item != 0])
         experiment['mean_AP'] = np.mean(experiment['AP_list'])
+        experiment['mean_classless_AP'] = np.mean(experiment['classless_AP_list'])
+        experiment['mean_classless_AP_AE_area1'] = np.mean(experiment["classless_AP_list_AE_area1"])
+        experiment['mean_classless_AP_AE_area2'] = np.mean(experiment["classless_AP_list_AE_area2"])
+        experiment['mean_classless_AP_AE_area3'] = np.mean(experiment["classless_AP_list_AE_area3"])
         print(experiment['rescaled'])
         print(experiment['overlaps'])
         print(experiment['30_threshold'])
@@ -193,6 +202,7 @@ def plot_boxplots(experiments):
             experiment[f'mean_nonzero_overlaps{ae_dataset}'] = np.mean([item for item in experiment[f'overlaps_{ae_dataset}'] if item != 0])
             print(experiment[f"AP_list_{ae_dataset}"])
             experiment[f"mean_AP_{ae_dataset}"] = np.mean(experiment[f"AP_list_{ae_dataset}"])
+            experiment[f"mean_classless_AP_{ae_dataset}"] = np.mean(experiment[f"classless_AP_list_{ae_dataset}"])
         experiment['dataset'] = 'tunasand'
         new_experiments.append(experiment)
 
@@ -208,6 +218,7 @@ def plot_boxplots(experiments):
     experiments_dataframe = pd.DataFrame(new_experiments)
     sns.set()
     plt.figure(figsize=(8,5))
+    mAP_summary_table(experiments_dataframe)
     include_row = experiments_dataframe.rescaled.isin(["not_rescaled", "res_nn", "drop_res_nn", "drop_res_up_nn"])
     filtered_experiments = experiments_dataframe[include_row]
     for value in experiment_level_graph_settings:
@@ -219,12 +230,10 @@ def plot_boxplots(experiments):
             order=value[2],
         )
 
-        # g.get_legend().remove()
         g.set_xticklabels(value[3], rotation=0)
-        # g.set_ylim([0,1])
+        g.set_ylim([0,1])
         g.set_xlabel("")
-        # plt.title(value[0])
-        # plt.xlabel('Epoch')
+        plt.title(value[0])
         plt.ylabel("Object Detection Rate")
 
         plt.savefig(f"{value[0]}_detection_boxplot", bbox_inches='tight')
@@ -234,38 +243,35 @@ def plot_boxplots(experiments):
             x=filtered_experiments[value[0]],
             y=filtered_experiments["mean_AP"],
             palette=value[1],
-            order=value[2],
+            # order=value[2],
         )
 
-        # g.get_legend().remove()
+        print(value)
         g.set_xticklabels(value[3], rotation=0)
-        # g.set_ylim([0,1])
+        g.set_ylim([0,1])
         g.set_xlabel("")
-        # plt.title(value[0])
-        # plt.xlabel('Epoch')
+        plt.title(value[0])
         plt.ylabel("mAP")
 
         plt.savefig(f"{value[0]}_mAP_boxplot", bbox_inches='tight')
 
+        plt.clf()
+        g = sns.boxplot(
+            x=filtered_experiments[value[0]],
+            y=filtered_experiments["mean_classless_AP"],
+            palette=value[1],
+            # order=value[2],
+        )
+
+        g.set_xticklabels(value[3], rotation=0)
+        g.set_ylim([0,1])
+        g.set_xlabel("")
+        plt.title(value[0])
+        plt.ylabel("mAP")
+
+        plt.savefig(f"{value[0]}_classless_mAP_boxplot", bbox_inches='tight')
+
         for ae_dataset in ["AE_area1", "AE_area2", "AE_area3"]:
-            plt.clf()
-            g = sns.boxplot(
-                x=filtered_experiments[value[0]],
-                y=filtered_experiments[f"30_threshold_{ae_dataset}"],
-                palette=value[1],
-                order=value[2],
-            )
-
-            # g.get_legend().remove()
-            g.set_xticklabels(value[3], rotation=0)
-            # g.set_ylim([0,1])
-            g.set_xlabel("")
-            # plt.title(value[0])
-            # plt.xlabel('Epoch')
-            plt.ylabel("Object Detection Rate")
-
-            plt.savefig(f"{value[0]}_detection_boxplot_{ae_dataset}", bbox_inches='tight')
-
             plt.clf()
             g = sns.boxplot(
                 x=filtered_experiments[value[0]],
@@ -274,15 +280,29 @@ def plot_boxplots(experiments):
                 order=value[2],
             )
 
-            # g.get_legend().remove()
             g.set_xticklabels(value[3], rotation=0)
-            # g.set_ylim([0,1])
+            g.set_ylim([0,1])
             g.set_xlabel("")
-            # plt.title(value[0])
-            # plt.xlabel('Epoch')
+            plt.title(value[0])
             plt.ylabel("mAP")
 
             plt.savefig(f"{value[0]}_mAP_boxplot_{ae_dataset}", bbox_inches='tight')
+
+            plt.clf()
+            g = sns.boxplot(
+                x=filtered_experiments[value[0]],
+                y=filtered_experiments[f"mean_classless_AP_{ae_dataset}"],
+                palette=value[1],
+                order=value[2],
+            )
+
+            g.set_xticklabels(value[3], rotation=0)
+            g.set_ylim([0,1])
+            g.set_xlabel("")
+            plt.title(value[0])
+            plt.ylabel("mAP")
+
+            plt.savefig(f"{value[0]}_classless_mAP_boxplot_{ae_dataset}", bbox_inches='tight')
 
 
         plt.clf()
@@ -794,7 +814,7 @@ def plot_size_overlap_boxplots(experiments):
             palette=value[1],
             order=value[2],
             fliersize=1,
-            hue="rescaled"
+            hue=ts_experiments["rescaled"],
         )
         print(value[2])
 
@@ -814,10 +834,9 @@ def plot_size_overlap_boxplots(experiments):
             g = sns.boxplot(
                 x=ae_dataset[0][value[0]],
                 y=ae_dataset[0]["overlap"],
-                # hue=experiments_dataframe["rescaled"],
+                hue=ae_dataset[0]["rescaled"],
                 order=value[2],
                 palette=value[1],
-                hue="rescaled"
             )
 
             # g.get_legend().remove()
@@ -1260,7 +1279,17 @@ def compile_dataframes():
     #export to csv
     combined_csv.to_csv( "maskandclassloss_csv.csv", index=False, encoding='utf-8-sig')
 
+def mAP_summary_table(experiments_dataframe):
+    print(experiments_dataframe.index)
+    mAP_table = experiments_dataframe.groupby(
+                                    by=["colour_correction_type", "rescaled", "distortion_correction", "elastic_distortions", "separate_channel_ops"],
+                                ).agg([np.mean, np.std])['mean_AP']
+    mAP_table.to_csv("mAP_table.csv")
 
+    ae_mAP_table = experiments_dataframe.groupby(
+                                    by=["colour_correction_type", "rescaled", "distortion_correction", "elastic_distortions", "separate_channel_ops"],
+                                ).agg([np.mean, np.std])[['mean_classless_AP_AE_area1', 'mean_classless_AP_AE_area2', 'mean_classless_AP_AE_area3']]
+    ae_mAP_table.to_csv("ae_mAP_table.csv")
 
 experiments = pd.read_csv("./experiments_dataframe_17.csv")
 plot_boxplots(experiments)

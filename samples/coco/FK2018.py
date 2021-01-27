@@ -113,12 +113,12 @@ class FKConfig(Config):
     # STD_PIXEL = np.array([20, 20, 20])
 
     # altitude corrected
-    MEAN_PIXEL = np.array([90, 90, 90])
-    STD_PIXEL = np.array([18, 20, 16])
+    # MEAN_PIXEL = np.array([90, 90, 90])
+    # STD_PIXEL = np.array([18, 20, 16])
 
     # # greyworld corrected
-    # MEAN_PIXEL = np.array([73, 73, 72])
-    # STD_PIXEL = np.array([27, 27, 26])
+    MEAN_PIXEL = np.array([73, 73, 72])
+    STD_PIXEL = np.array([27, 27, 26])
 
 
 ############################################################
@@ -512,15 +512,16 @@ def train_nnet(section1_epochs=10, section2_epochs=20, section3_epochs=300, lear
                 iaa.GaussianBlur(sigma=gaussian_sigma),
                 iaa.MotionBlur(k=motion_k),
                 iaa.LinearContrast(alpha=contrast_alpha),
-                iaa.Fliplr(fliplr),
-                iaa.Flipud(flipud),
+                # iaa.Fliplr(fliplr),
+                # iaa.Flipud(flipud),
                 iaa.PiecewiseAffine(scale=affine_scale, nb_rows=8, nb_cols=8,polygon_recoverer='auto'),
                 iaa.PerspectiveTransform(scale=transform_scale, keep_size=True),
-                iaa.Rot90([0,1,2,3])]
+                # iaa.Rot90([0,1,2,3]),
+                ]
         if(elastic_transformations):
             auglist.append(iaa.ElasticTransformation(sigma=elastic_sigma, alpha=elastic_alpha))
         augmentation = iaa.SomeOf((0, 5), auglist, random_order=True)
-        augmentation = None
+        # augmentation = None
         #setting augmentation to original "old main" version
     #   augmentation = iaa.Sometimes(.667, iaa.Sequential([
     #            iaa.Fliplr(0.5), # horizontal flips

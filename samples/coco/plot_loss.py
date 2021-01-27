@@ -1,16 +1,16 @@
 import os
+folder = './logs_E'
 
-
-def plot_loss():
-	directories = os.listdir('./logs')
+def plot_loss(folder):
+	directories = os.listdir(folder)
 	print(directories)
 	for directory in directories:
-		if len([f for f in os.listdir('./logs/'+directory) if f[-4:] == '.csv']) == 0:
-			filenames=[f for f in os.listdir('./logs/'+directory) if f[-4:] == '.txt']
+		if len([f for f in os.listdir(f"{folder}/{directory}") if f[-4:] == '.csv']) == 0:
+			filenames=[f for f in os.listdir(f"{folder}/{directory}") if f[-4:] == '.txt']
 			print(filenames)
 
 			for filename in filenames:
-				log_file = open('./logs/'+directory+'/'+filename, 'r')
+				log_file = open(f"{folder}/{directory}/{filename}", 'r')
 				print(log_file)
 				print('./'+directory+'/'+filename)
 
@@ -32,7 +32,7 @@ def plot_loss():
 					break
 				keys = log[0].keys()
 				print(keys)
-				results_filename ='./logs/'+directory+'/results'+filename.split('.')[0]+'.csv'
+				results_filename =f"{folder}/{directory}/results{filename.split('.')[0]+'.csv'}"
 
 				with open(results_filename, 'w') as output_file:
 					dict_writer = csv.DictWriter(output_file, keys)
@@ -40,4 +40,6 @@ def plot_loss():
 					dict_writer.writerows(log)
 
 if __name__ == '__main__':
-	plot_loss()
+	for folder in ['logs_F', 'logs_G', 'logs_H']:
+		plot_loss(folder)
+

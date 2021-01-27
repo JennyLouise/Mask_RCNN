@@ -529,7 +529,7 @@ def resize_image(image, min_dim=None, max_dim=None, min_scale=None, mode="square
         x = random.randint(0, (w - min_dim))
         crop = (y, x, min_dim, min_dim)
         image = image[y : y + min_dim, x : x + min_dim]
-        window = (0, 0, min_dim, min_dim)
+        scale = 1
 
     else:
         raise Exception("Mode {} not supported".format(mode))
@@ -550,11 +550,13 @@ def resize_mask(mask, scale, padding, crop=None):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         mask = scipy.ndimage.zoom(mask, zoom=[scale, scale, 1], order=0)
+    if padding is not None:
+        mask = np.pad(mask, padding, mode="constant", constant_values=0)
     if crop is not None:
         y, x, h, w = crop
         mask = mask[y : y + h, x : x + w]
-    else:
-        mask = np.pad(mask, padding, mode="constant", constant_values=0)
+    # else:
+    #     mask = np.pad(mask, padding, mode="constant", constant_values=0)
     return mask
 
 
